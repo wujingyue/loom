@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "../constants.h"
+#include "constants.h"
 
 #define SOCK_TIMEOUT 10
 

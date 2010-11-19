@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "../constants.h"
+#include "constants.h"
 
 using namespace std;
 using namespace __gnu_cxx;

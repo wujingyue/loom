@@ -26,7 +26,7 @@
 #include <string.h>
 #include <sys/socket.h>
 
-#include "../constants.h"
+#include "constants.h"
 #include "controller.h"
 
 using namespace std;
