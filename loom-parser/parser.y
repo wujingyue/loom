@@ -496,7 +496,7 @@ function:
 %%
 
 
-void yyerror(char *s)
+void yyerror(const char *s)
 {
     std::cerr << s << std::endl;
 }
