@@ -1,4 +1,4 @@
-OBJDIR=$(DEFENS_ROOT)/llvm-obj/Release/lib
+OBJDIR=$(LLVM_ROOT)/llvm-obj/Release/lib
 
 all: a.bc3 clone.bc3 race.bc3
 
@@ -14,7 +14,7 @@ all: a.bc3 clone.bc3 race.bc3
 %.bc2: %.bc1 $(OBJDIR)/inject-hook.so $(OBJDIR)/idm.so
 	opt -O2 -load $(OBJDIR)/idm.so -load $(OBJDIR)/inject-hook.so -inject-hook < $< > $@
 
-%.bc3: %.bc2 $(DEFENS_ROOT)/loom-bit/stub.bc
+%.bc3: %.bc2 $(LLVM_ROOT)/loom-bit/stub.bc
 	llvm-ld -o tmp $^
 	mv tmp.bc $@
 

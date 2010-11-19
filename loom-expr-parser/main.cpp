@@ -143,11 +143,11 @@ void check_location(Dwarf_Debug dbg, Dwarf_Die die, int depth) {
 }
 
 void print_usage_symbol(int argc, char *argv[]) {
-	fprintf(stderr, "Usage: %s <executable> <pc> <symbol>\n", argv[0]);
+	fprintf(stderr, "Usage: %s <executable> <pc|file:line> <symbol>\n", argv[0]);
 }
 
 void print_usage_exp(int argc, char *argv[]) {
-	fprintf(stderr, "Usage: %s <executable> <pc> <expression>\n", argv[0]);
+	fprintf(stderr, "Usage: %s <executable> <pc|file:line> <expression>\n", argv[0]);
 }
 
 Dwarf_Addr hex_str_to_int(char *input) {
@@ -173,7 +173,7 @@ Dwarf_Addr parse_loc(Dwarf_Debug dbg, char *str) {
 
 int test_symbol(int argc, char *argv[]) {
 	if (argc < 4) {
-		print_usage_symbol(argc, argv);
+		print_usage_exp(argc, argv);
 		return -1;
 	}
 

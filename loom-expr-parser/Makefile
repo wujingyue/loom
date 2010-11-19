@@ -28,7 +28,7 @@ LINK_GDB=$(GDBSRC)/gdb/libgdb.a \
 	 ${GDBSRC}/readline/libreadline.a ${GDBSRC}/gdb/gnulib/libgnu.a
 # END gdb
 
-all: main
+all: expr-parser
 	make -C tests
 
 find-symbol.o: find-symbol.c *.h
@@ -45,7 +45,7 @@ parse-exp.o: parse-exp.c *.h
 
 main.o: main.cpp *.h
 
-main: main.o find-symbol.o traverse.o line-to-addr.o parse-exp.o loom-exp.o
+expr-parser: main.o find-symbol.o traverse.o line-to-addr.o parse-exp.o loom-exp.o
 	g++ $(CXXFLAGS) -o $@ $^ -ldwarf -lelf -ltermcap -lz -lpython2.6 $(LINK_GDB)
 
 clean:
