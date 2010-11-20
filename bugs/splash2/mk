@@ -1,0 +1,3 @@
+#!/bin/sh
+
+$BUGS_DIR/splash2/mk
