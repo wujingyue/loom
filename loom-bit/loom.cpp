@@ -262,13 +262,11 @@ extern "C" void loom_after_call(int check_id) {
 #endif // OPT3
 
 #ifndef INLINE_DISPATCHER
-
 extern "C" void loom_dispatcher(int ins_id) {
 	if (likely(callback[ins_id] == NULL))
 		return;
 	inject_func_t func = callback[ins_id];
 	func(arguments[ins_id]); 
 }
-
 #endif
 
