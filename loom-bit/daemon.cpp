@@ -2,6 +2,7 @@
 
 #include <arpa/inet.h>
 #include <cstring>
+#include <cstdlib>
 #include <netdb.h>
 #include <errno.h>
 #include <iostream>

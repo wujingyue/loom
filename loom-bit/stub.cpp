@@ -9,6 +9,9 @@
 
 #include <iostream>
 #include <cassert>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
 
 #include <signal.h>
 #include <sys/prctl.h>

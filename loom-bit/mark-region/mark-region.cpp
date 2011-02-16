@@ -18,8 +18,8 @@
 #include <fstream>
 #include <sstream>
 
-#include "../../include/util.h"
-#include "../../idm/id.h"
+#include "../../../llvm/idm/util.h"
+#include "../../../llvm/idm/id.h"
 #include "../loom.h"
 
 using namespace llvm;

@@ -2,6 +2,9 @@
 #include <cassert>
 #include <sstream>
 #include <set>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
 #include <libdwarf.h>
 #include <dwarf.h>

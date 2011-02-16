@@ -1,9 +1,11 @@
 #define _REENTRANT
 
+#include <cstdio>
 #include "sync_objs.h"
 #include "loom.h"
 #include <pthread.h>
 #include <semaphore.h>
+using namespace std;
 
 static pthread_mutex_t mutexes[MAX_N_FIXES];
 static sem_t sems[MAX_N_FIXES];
