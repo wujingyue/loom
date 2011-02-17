@@ -46,14 +46,14 @@ static int send_to_controller(const char *msg) {
 }
 
 static int recv_from_controller(string &res) {
-	fprintf(stderr, "receiving from the controller %d\n", daemon_sock);
+	// fprintf(stderr, "receiving from the controller %d\n", daemon_sock);
 	char buffer[MAX_LEN];
 	int len;
 	if (recv(daemon_sock, &len, sizeof(int), 0) == -1) {
 		perror("recv");
 		return -1;
 	}
-	fprintf(stderr, "received len\n");
+	// fprintf(stderr, "received len\n");
 	len = ntohl(len) - 4;
 	if (len >= MAX_LEN) {
 		fprintf(stderr, "Message too long: length = %d\n", len);
@@ -65,7 +65,7 @@ static int recv_from_controller(string &res) {
 	}
 	buffer[len] = '\0';
 	res = string(buffer);
-	fprintf(stderr, "received something: %s\n", buffer);
+	// fprintf(stderr, "received something: %s\n", buffer);
 	return 0;
 }
 
@@ -115,12 +115,12 @@ static int get_checks_and_funcs(const Fix &fix, vector<int> &checks, vector<int>
 	gettimeofday(&start, NULL);
 	if (fork() == 0) {
 		// Change
-		// int input_fd = open("/home/jingyue/Research/bugs/mysql-791/mysqld.bc2", O_RDONLY);
+		int input_fd = open("/home/jingyue/Research/bugs/mysql-791/mysqld-inject.bc", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/mysql-169/mysqld.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/mysql-644/mysqld.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/apache-25520/httpd.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/apache-21287/httpd.bc2", O_RDONLY);
-		int input_fd = open("/home/jingyue/Research/bugs/splash2/splash2/codes/kernels/fft/fft.bc2", O_RDONLY);
+		// int input_fd = open("/home/jingyue/Research/bugs/splash2/splash2/codes/kernels/fft/fft.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/splash2/splash2/codes/kernels/lu/non_contiguous_blocks/lu.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/splash2/splash2/codes/apps/barnes/barnes.bc2", O_RDONLY);
 		// int input_fd = open("/home/jingyue/Research/bugs/pbzip2/pbzip2.bc2", O_RDONLY);
@@ -135,10 +135,15 @@ static int get_checks_and_funcs(const Fix &fix, vector<int> &checks, vector<int>
 			perror("dup2");
 			exit(-1);
 		}
-		ret = execlp("opt", "opt",
-				"-load", "/home/jingyue/Research/defens-new/llvm-obj/Debug/lib/idm.so",
-				"-load", "/home/jingyue/Research/defens-new/llvm-obj/Debug/lib/mark-region.so",
-				"-mark-region", "-analyze", NULL);
+		ret = execlp("opt",
+				"opt",
+				"-load",
+				"/home/jingyue/Research/llvm/llvm-obj/Release/lib/idm.so",
+				"-load",
+				"/home/jingyue/Research/llvm/llvm-obj/Release/lib/mark-region.so",
+				"-mark-region",
+				"-analyze",
+				NULL);
 		if (ret == -1) {
 			perror("execlp");
 			exit(-1);
@@ -224,6 +229,7 @@ static int handle_add(int fix_id, const string &file_name, char *err_msg) {
 		usleep(10 * 1000);
 	}
 	fprintf(stderr, "deactivated\n");
+
 	if (add_fix(fix_id, fix) == -1) {
 		snprintf(err_msg, MAX_LEN, "Unable to add fix");
 		activate();
@@ -366,7 +372,7 @@ int handle_client_requests(void *arg) {
 			perror("send");
 			break;
 		}
-		fprintf(stderr, "send succeed\n");
+		// fprintf(stderr, "send succeed\n");
 	}
 	while (true) {
 		sleep(20);

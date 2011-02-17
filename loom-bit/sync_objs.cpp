@@ -19,15 +19,15 @@ void init_sync_objs() {
 
 int enter_critical_region(argument_t arg) {
 	long fix_id = (long)arg;
-	// fprintf(stderr, "enter_critical_region %d\n", fix_id);
 	pthread_mutex_lock(&mutexes[fix_id]);
+	fprintf(stderr, "enter_critical_region %p\n", &mutexes[fix_id]);
 	return 0;
 }
 
 int exit_critical_region(argument_t arg) {
 	long fix_id = (long)arg;
+	fprintf(stderr, "exit_critical_region %p\n", &mutexes[fix_id]);
 	pthread_mutex_unlock(&mutexes[fix_id]);
-	// fprintf(stderr, "exit_critical_region %d\n", fix_id);
 	return 0;
 }
 
