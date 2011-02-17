@@ -7,9 +7,7 @@
 # 
 ##===----------------------------------------------------------------------===##
 
-LEVEL = $(shell $(LLVM_ROOT)/scripts/level-to-llvm-root)/llvm-obj
-CFLAGS = -I$(LLVM_ROOT)
-CXXFLAGS = -I$(LLVM_ROOT)
+LEVEL = ../../llvm/llvm-obj
 LIBRARYNAME = src-locator
 LOADABLE_MODULE = 1
 

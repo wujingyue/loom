@@ -19,8 +19,7 @@
 #include <fstream>
 #include <ext/hash_map>
 
-#include "include/util.h"
-#include "idm/id.h"
+#include "../../llvm/idm/util.h"
 #include "src-locator.h"
 
 using namespace llvm;
