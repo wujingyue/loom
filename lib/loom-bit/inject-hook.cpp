@@ -17,13 +17,12 @@
 #include <set>
 #include <map>
 #include <fstream>
-
-#include "../../../llvm/idm/util.h"
-#include "../../../llvm/idm/id.h"
-#include "../loom.h"
-
-using namespace llvm;
 using namespace std;
+
+#include "common/util.h"
+#include "common/IDAssigner.h"
+#include "loom/loom.h"
+using namespace llvm;
 
 const static string SUFFIX = ".loom";
 
@@ -146,13 +145,13 @@ namespace defens {
 		InjectHook(): ModulePass(&ID) {}
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-			AU.addRequired<ObjectID>();
+			AU.addRequired<IDAssigner>();
 			ModulePass::getAnalysisUsage(AU);
 		}
 
 		void print_ins(Instruction *ins) {
-			cerr << ins->getParent()->getParent()->getNameStr();
-			cerr << "." << ins->getParent()->getNameStr();
+			errs() << ins->getParent()->getParent()->getNameStr();
+			errs() << "." << ins->getParent()->getNameStr();
 			ins->dump();
 		}
 
@@ -247,7 +246,7 @@ namespace defens {
 			int n_insts = 0;
 			forallbb(M, bi)
 				n_insts += bi->size();
-			cerr << "# of instructions = " << n_insts << endl;
+			errs() << "# of instructions = " << n_insts << "\n";
 		}
 
 		void insert_loom_check(Function *fi) {
@@ -393,9 +392,9 @@ namespace defens {
 					}
 				}
 			}
-			cerr << "# of functions used as function pointers = " << fps.size() << endl;
+			errs() << "# of functions used as function pointers = " << fps.size() << "\n";
 			for (set<Function *>::iterator it = fps.begin(); it != fps.end(); ++it)
-				cerr << (*it)->getNameStr() << endl;
+				errs() << (*it)->getNameStr() << "\n";
 
 #if 0
 			/* Specially handle the function pointer h_func in mysql server. */
@@ -456,9 +455,9 @@ namespace defens {
 			sort(thread_funcs.begin(), thread_funcs.end());
 			thread_funcs.resize(unique(thread_funcs.begin(), thread_funcs.end()) - thread_funcs.begin());
 
-			cerr << "Thread functions:\n";
+			errs() << "Thread functions:\n";
 			for (size_t i = 0; i < thread_funcs.size(); ++i)
-				cerr << thread_funcs[i]->getNameStr() << endl;
+				errs() << thread_funcs[i]->getNameStr() << "\n";
 		}
 
 		void insert_loom_setup(Module &M) {
@@ -547,7 +546,7 @@ namespace defens {
 				}
 			}
 
-			ObjectID &IDM = getAnalysis<ObjectID>();
+			IDAssigner &IDM = getAnalysis<IDAssigner>();
 			IDM.runOnModule(M);
 			/*
 			 * Set the argument value as the instruction ID
@@ -589,7 +588,7 @@ namespace defens {
 			insert_loom_setup(M);
 			insert_paddings_on_slow_paths(M);
 
-			cerr << "# of checks = " << n_checks << endl;
+			errs() << "# of checks = " << n_checks << "\n";
 
 			return true;
 		}

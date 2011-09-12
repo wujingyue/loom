@@ -4,21 +4,15 @@
 using namespace std;
 
 #include "llvm/Module.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/Constants.h"
-#include "llvm/BasicBlock.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Transforms/Utils/BasicInliner.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Analysis/Dominators.h"
 #include "common/util.h"
-#include "common/id-manager.h"
+#include "common/IDAssigner.h"
 #include "loom/loom.h"
 using namespace llvm;
 
@@ -51,8 +45,7 @@ namespace defens {
 		CloneFunc(): ModulePass(&ID) {}
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-			AU.addRequired<MicroBasicBlockBuilder>();
-			AU.addRequired<ObjectID>();
+			AU.addRequired<IDAssigner>();
 			AU.addRequired<DominatorTree>();
 			ModulePass::getAnalysisUsage(AU);
 		}
@@ -73,21 +66,21 @@ namespace defens {
 		}
 
 		void print_ins(Instruction *ins) {
-			cerr << ins->getParent()->getParent()->getNameStr();
-			cerr << "." << ins->getParent()->getNameStr();
+			errs() << ins->getParent()->getParent()->getNameStr();
+			errs() << "." << ins->getParent()->getNameStr();
 			ins->dump();
 		}
 
 		void create_funcs_and_gvs(Module &M) {
-			int_type = IntegerType::get(getGlobalContext(), 32);
+			int_type = IntegerType::get(M.getContext(), 32);
 			int_arr_type = ArrayType::get(int_type, MAX_N_FUNCS);
 
 			vector<const Type *> params;
 			params.push_back(int_type);
-			stub_fty = FunctionType::get(Type::getVoidTy(getGlobalContext()), params, false);
+			stub_fty = FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
 			switch_fty = FunctionType::get(int_type, params, false);
-			init_fty = FunctionType::get(Type::getVoidTy(getGlobalContext()), params, false);
-			no_arg_fty = FunctionType::get(Type::getVoidTy(getGlobalContext()), vector<const Type *>(), false);
+			init_fty = FunctionType::get(Type::getVoidTy(M.getContext()), params, false);
+			no_arg_fty = FunctionType::get(Type::getVoidTy(M.getContext()), vector<const Type *>(), false);
 
 			// is_func_patched = M.getOrInsertGlobal("is_func_patched", int_arr_type);
 			loom_is_func_patched = M.getOrInsertFunction(LOOM_IS_FUNC_PATCHED, switch_fty);
@@ -104,18 +97,6 @@ namespace defens {
 			}
 			fprintf(stderr, "# of defined functions = %d\n", n_funcs);
 			fprintf(stderr, "# of functions = %d\n", n_funcs_including_decl);
-
-#if 0
-			/* Count micro basic blocks. */
-			MicroBasicBlockBuilder &MBB = getAnalysis<MicroBasicBlockBuilder>();
-			int n_mbbs = 0;
-			forallbb(M, bi) {
-				for (mbb_iterator mi = MBB.begin(bi); mi != MBB.end(bi); mi++) {
-					n_mbbs++;
-				}
-			}
-			fprintf(stderr, "# of mbbs = %d\n", n_mbbs);
-#endif
 		}
 
 		void check_for_dominance(Function *fi) {
@@ -162,14 +143,16 @@ namespace defens {
 							valid = false;
 					}
 					if (!valid) {
-						cerr << "Predecessors\n";
-						for (vector<BasicBlock *>::iterator j = preds.begin(); j != preds.end(); ++j)
-							cerr << (*j)->getNameStr() << " ";
-						cerr << endl;
-						cerr << "Incoming blocks:\n";
-						for (vector<BasicBlock *>::iterator j = incoming.begin(); j != incoming.end(); ++j)
-							cerr << (*j)->getNameStr() << " ";
-						cerr << endl;
+						errs() << "Predecessors\n";
+						for (vector<BasicBlock *>::iterator j = preds.begin();
+								j != preds.end(); ++j)
+							errs() << (*j)->getNameStr() << " ";
+						errs() << "\n";
+						errs() << "Incoming blocks:\n";
+						for (vector<BasicBlock *>::iterator j = incoming.begin();
+								j != incoming.end(); ++j)
+							errs() << (*j)->getNameStr() << " ";
+						errs() << "\n";
 					}
 					for (unsigned j = 0; j < preds.size(); ++j)
 						assert(preds[j] == incoming[j]);
@@ -209,9 +192,11 @@ namespace defens {
 			return true;
 		}
 
-		void process(Function *fi, ObjectID &IDM) {
-			int func_id = IDM.getFunctionID(fi);
-			cerr << "Function: " << fi->getNameStr() << endl;
+		void process(Function *fi) {
+			IDAssigner &IDA = getAnalysis<IDAssigner>();
+
+			int func_id = IDA.getFunctionID(fi);
+			dbgs() << "Function: " << fi->getNameStr() << "\n";
 			// Find all back edges.
 			bb_color.clear();
 			for (Function::iterator bi = fi->begin(); bi != fi->end(); bi++)
@@ -224,8 +209,8 @@ namespace defens {
 			for (int i = (int)back_edges.size() - 1; i >= 0; i--) {
 				BasicBlock *x = back_edges[i].first, *y = back_edges[i].second;
 				if (is_tight_loop(x, y)) {
-					cerr << "Ignored the back edge: " << back_edges[i].first->getNameStr();
-					cerr << " -> " << back_edges[i].second->getNameStr() << endl;
+					errs() << "Ignored the back edge: " << back_edges[i].first->getNameStr();
+					errs() << " -> " << back_edges[i].second->getNameStr() << "\n";
 					back_edges.erase(back_edges.begin() + i);
 				}
 			}
@@ -275,7 +260,7 @@ namespace defens {
 				// cerr << x->getNameStr() << " -> " << y->getNameStr() << endl;
 				// Create the back-edge basic block
 				// BasicBlock *bb = BasicBlock::Create(getGlobalContext(), "BE_" + x->getNameStr() + "_" + y->getNameStr(), fi);
-				BasicBlock *bb = BasicBlock::Create(getGlobalContext(), "", fi);
+				BasicBlock *bb = BasicBlock::Create(fi->getContext(), "", fi);
 				bb->setName("new_backedge_" + bb->getNameStr());
 				// Set its sucessor to y
 				BranchInst::Create(y, bb);
@@ -305,7 +290,7 @@ namespace defens {
 				BasicBlock *new_y = dyn_cast<BasicBlock>(clone_mapping[y]);
 				// Create the back-edge basic block
 				// BasicBlock *bb = BasicBlock::Create(getGlobalContext(), "BE_" + x->getNameStr() + "_" + y->getNameStr(), fi);
-				BasicBlock *bb = BasicBlock::Create(getGlobalContext(), "", fi);
+				BasicBlock *bb = BasicBlock::Create(fi->getContext(), "", fi);
 				bb->setName("backedge_" + bb->getNameStr());
 #if 0
 				vector<Value *> indices;
@@ -340,7 +325,7 @@ namespace defens {
 
 			// Add a switch at the function entry for thread functions including the main function. 
 			BasicBlock *old_entry = &fi->getEntryBlock();
-			BasicBlock *switch_bb = BasicBlock::Create(getGlobalContext(), "__entry", fi, old_entry);
+			BasicBlock *switch_bb = BasicBlock::Create(fi->getContext(), "__entry", fi, old_entry);
 #if 0
 			vector<Value *> indices;
 			indices.push_back(ConstantInt::get(int_type, 0));
@@ -402,15 +387,13 @@ namespace defens {
 		}
 
 		virtual bool runOnModule(Module &M) {
-
 			create_funcs_and_gvs(M);
 			statistic(M);
 			// Clone basic blocks inside each function.
-			ObjectID &IDM = getAnalysis<ObjectID>();
 			forallfunc(M, fi) {
 				if (fi->isDeclaration())
 					continue;
-				process(fi, IDM);
+				process(fi);
 			}
 
 			return true;

@@ -7,20 +7,20 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/BasicInliner.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Analysis/Dominators.h"
+#include "llvm/ADT/DenseSet.h"
 
 #include <set>
 #include <map>
 #include <fstream>
 #include <sstream>
 
-#include "../../../llvm/idm/util.h"
-#include "../../../llvm/idm/id.h"
-#include "../loom.h"
+#include "common/util.h"
+#include "common/IDAssigner.h"
+#include "loom/loom.h"
 
 using namespace llvm;
 using namespace std;
@@ -56,13 +56,13 @@ namespace defens {
 
 		virtual void getAnalysisUsage(AnalysisUsage &AU) const {
 			AU.setPreservesAll();
-			AU.addRequired<ObjectID>();
+			AU.addRequired<IDAssigner>();
 			ModulePass::getAnalysisUsage(AU);
 		}
 
 		void print_ins(Instruction *ins) {
-			cerr << ins->getParent()->getParent()->getNameStr();
-			cerr << "." << ins->getParent()->getNameStr();
+			errs() << ins->getParent()->getParent()->getNameStr();
+			errs() << "." << ins->getParent()->getNameStr();
 			ins->dump();
 		}
 
@@ -97,9 +97,9 @@ namespace defens {
 				}
 			}
 #if 0
-			cerr << "# of functions used as function pointers = " << fps.size() << endl;
+			errs() << "# of functions used as function pointers = " << fps.size() << "\n";
 			for (set<Function *>::iterator it = fps.begin(); it != fps.end(); ++it)
-				cerr << (*it)->getNameStr() << endl;
+				errs() << (*it)->getNameStr() << "\n";
 #endif
 			/* Every BB's called functions */
 			called_func.clear();
@@ -116,8 +116,8 @@ namespace defens {
 						const Type *t = dyn_cast<PointerType>(v->getType())->getElementType();
 						assert(t->isFunctionTy());
 #if 0
-						cerr << "Function Pointer detected\n";
-						cerr << "Candidates:\n";
+						errs() << "Function Pointer detected\n";
+						errs() << "Candidates:\n";
 #endif
 						int n_cands = 0;
 						for (set<Function *>::iterator it = fps.begin(); it != fps.end(); ++it) {
@@ -125,14 +125,14 @@ namespace defens {
 							if (fi->isDeclaration())
 								continue;
 							if (fi->getFunctionType() == t) {
-								// cerr << fi->getNameStr() << ' ';
+								// errs() << fi->getNameStr() << ' ';
 								called_func[ii->getParent()].push_back(fi);
 								call_sites[fi].push_back(ii);
 								n_cands++;
 							}
 						}
 						dist_n_cands.push_back(n_cands);
-						// cerr << endl;
+						// errs() << "\n";
 					} else if (!callee->isDeclaration()) {
 						called_func[ii->getParent()].push_back(callee);
 						call_sites[callee].push_back(ii);
@@ -140,12 +140,12 @@ namespace defens {
 				}
 			}
 #if 0
-			cerr << "Distribution of # of candidates:\n";
+			errs() << "Distribution of # of candidates:\n";
 			sort(dist_n_cands.begin(), dist_n_cands.end());
 			for (size_t i = 0; i < dist_n_cands.size(); ++i) {
-				cerr << dist_n_cands[i] << ' ';
+				errs() << dist_n_cands[i] << ' ';
 			}
-			cerr << endl;
+			errs() << "\n";
 #endif
 			for (DenseMap<BasicBlock *, vector<Function *> >::iterator it = called_func.begin();
 					it != called_func.end(); ++it) {
@@ -311,7 +311,7 @@ namespace defens {
 					CallSite::arg_iterator ai = cs.arg_begin();
 					while (ai != cs.arg_end() && !isa<Function>(ai)) {
 						if (isa<BitCastInst>(ai))
-							cerr << "bitcast\n";
+							errs() << "bitcast\n";
 						ai++;
 					}
 					if (ai == cs.arg_end()) {
@@ -344,7 +344,7 @@ namespace defens {
 						Function *target = dyn_cast<Function>(*ai);
 						fprintf(stderr, "pthread_create with a constant function:\n");
 						if (target && !target->isDeclaration()) {
-							cerr << target->getNameStr() << endl;
+							errs() << target->getNameStr() << "\n";
 							Instruction *y = target->getEntryBlock().begin();
 							if (!visited_ins.count(y)) {
 								Instruction *res = DFS_ins(y, cut, false);
@@ -373,7 +373,9 @@ namespace defens {
 			return NULL;
 		}
 
-		int read_region(Module &M, ObjectID &IDM) {
+		int read_region(Module &M) {
+			IDAssigner &IDA = getAnalysis<IDAssigner>();
+
 			ifstream fin("/tmp/mark-region.in");
 			if (!fin.is_open())
 				return -1;
@@ -384,7 +386,7 @@ namespace defens {
 			istringstream strin(line);
 			frontier.clear();
 			while (strin >> ins_id) {
-				Instruction *ins = IDM.getInstruction(ins_id);
+				Instruction *ins = IDA.getInstruction(ins_id);
 				assert(ins);
 				frontier.push_back(ins);
 			}
@@ -393,7 +395,7 @@ namespace defens {
 			strin.str(line);
 			postier.clear();
 			while (strin >> ins_id) {
-				Instruction *ins = IDM.getInstruction(ins_id);
+				Instruction *ins = IDA.getInstruction(ins_id);
 				assert(ins);
 				postier.push_back(ins);
 			}
@@ -422,10 +424,8 @@ namespace defens {
 
 			get_injected_functions(M);
 
-			ObjectID &IDM = getAnalysis<ObjectID>();
-
-			if (read_region(M, IDM) == -1) {
-				cerr << "Cannot find the input file\n";
+			if (read_region(M) == -1) {
+				errs() << "Cannot find the input file\n";
 				return false;
 			}
 
@@ -476,27 +476,30 @@ namespace defens {
 						checks_to_be_disabled.insert(check_id);
 					}
 				}
-				cerr << "Instruction " << IDM.getInstructionID(*it) << endl;
+				IDAssigner &IDA = getAnalysis<IDAssigner>();
+				errs() << "Instruction " << IDA.getInstructionID(*it) << "\n";
 			}
 			ofstream fout("/tmp/mark-region.out");
 			for (set<int>::iterator it = checks_to_be_disabled.begin();
 					it != checks_to_be_disabled.end(); ++it) {
-				cerr << "Check " << *it << endl;
-				fout << *it << endl;
+				errs() << "Check " << *it << "\n";
+				fout << *it << "\n";
 			}
 			fout.close();
 			fout.open("/tmp/funcs-to-be-patched.out");
 			for (size_t i = 0; i < frontier.size(); ++i) {
 				Function *f = frontier[i]->getParent()->getParent();
 				assert(f);
-				cerr << "Function: " << f->getNameStr() << endl;
-				fout << IDM.getFunctionID(f) << endl;
+				errs() << "Function: " << f->getNameStr() << "\n";
+				IDAssigner &IDA = getAnalysis<IDAssigner>();
+				fout << IDA.getFunctionID(f) << "\n";
 			}
 			for (size_t i = 0; i < postier.size(); ++i) {
 				Function *f = postier[i]->getParent()->getParent();
 				assert(f);
-				cerr << "Function: " << f->getNameStr() << endl;
-				fout << IDM.getFunctionID(f) << endl;
+				errs() << "Function: " << f->getNameStr() << "\n";
+				IDAssigner &IDA = getAnalysis<IDAssigner>();
+				fout << IDA.getFunctionID(f) << "\n";
 			}
 			fout.close();
 			return false;
