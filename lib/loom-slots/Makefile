@@ -1,5 +1,9 @@
-CFLAGS=-g -O2 -Wall -fPIC
-CXXFLAGS=-g -O2 -Wall -fPIC
+LEVEL = ../..
+
+include $(LEVEL)/Makefile.common
+
+CFLAGS = -g -O2 -Wall -fPIC
+CXXFLAGS = -g -O2 -Wall -fPIC
 
 # We link <stub.o> to <loom.so> no matter whether we want to inline the padding functions.
 # If the padding functions are inlined, the linker will automatically simply

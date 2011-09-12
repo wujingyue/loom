@@ -1,3 +1,8 @@
+#include <set>
+#include <map>
+#include <fstream>
+using namespace std;
+
 #include "llvm/Module.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/DerivedTypes.h"
@@ -12,22 +17,14 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
-
-#include <set>
-#include <map>
-#include <fstream>
-
-#include "../../../llvm/idm/util.h"
-#include "../../../llvm/idm/id.h"
-#include "../loom.h"
-
+#include "common/util.h"
+#include "common/id-manager.h"
+#include "loom/loom.h"
 using namespace llvm;
-using namespace std;
 
 const static string SUFFIX = ".loom";
 
 namespace defens {
-
 	enum COLOR {
 		WHITE = 0,
 		GRAY,
@@ -42,7 +39,6 @@ namespace defens {
 	};
 
 	struct CloneFunc: public ModulePass {
-
 		static char ID;
 
 		const Type *int_type, *int_arr_type;
