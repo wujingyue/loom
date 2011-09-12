@@ -1,4 +1,3 @@
-
 CC = g++
 CXX = g++
 LEX = lex
@@ -7,7 +6,7 @@ AR = ar
 
 FLAGS = -g
 
-all:libparser.a
+all:libparser.a parser
 
 parser.y.c:parser.y
 	$(YACC) -o parser.y.c -d parser.y

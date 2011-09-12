@@ -1,5 +1,5 @@
 LEVEL = ..
 
-DIRS = loom-ctl
+DIRS = loom-ctl loom-parser
 
 include $(LEVEL)/Makefile.common
