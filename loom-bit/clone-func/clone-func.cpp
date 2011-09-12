@@ -376,7 +376,9 @@ namespace defens {
 			for (map<Instruction *, vector<Instruction *> >::iterator it = to_resolve.begin();
 					it != to_resolve.end(); ++it) {
 				Instruction *ii = it->first;
-				// Skip old basic blocks. InvokeInst does not dominate its usages.
+				// Skip old basic blocks. An old instruction always dominates its users.
+				// because there's no switch from the new path to the old path. 
+				// InvokeInst does not dominate its usages.
 				if (set_old_bbs.count(ii->getParent()))
 					continue;
 				// Create the SSAUpdater for ii
