@@ -1,7 +1,6 @@
 #include <set>
 #include <map>
 #include <fstream>
-using namespace std;
 
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
@@ -14,6 +13,8 @@ using namespace std;
 #include "common/util.h"
 #include "common/IDAssigner.h"
 #include "loom/loom.h"
+
+using namespace std;
 using namespace llvm;
 
 const static string SUFFIX = ".loom";

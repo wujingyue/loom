@@ -17,9 +17,9 @@
 #include <sys/time.h>
 #include <ctime>
 
-#include "daemon.h"
-#include "fixes.h"
-#include "loom.h"
+#include "loom/daemon.h"
+#include "loom/fixes.h"
+#include "loom/loom.h"
 
 using namespace std;
 
@@ -46,14 +46,14 @@ static int send_to_controller(const char *msg) {
 }
 
 static int recv_from_controller(string &res) {
-	// fprintf(stderr, "receiving from the controller %d\n", daemon_sock);
+	fprintf(stderr, "receiving from the controller %d\n", daemon_sock);
 	char buffer[MAX_LEN];
 	int len;
 	if (recv(daemon_sock, &len, sizeof(int), 0) == -1) {
 		perror("recv");
 		return -1;
 	}
-	// fprintf(stderr, "received len\n");
+	fprintf(stderr, "received len\n");
 	len = ntohl(len) - 4;
 	if (len >= MAX_LEN) {
 		fprintf(stderr, "Message too long: length = %d\n", len);
@@ -65,7 +65,7 @@ static int recv_from_controller(string &res) {
 	}
 	buffer[len] = '\0';
 	res = string(buffer);
-	// fprintf(stderr, "received something: %s\n", buffer);
+	fprintf(stderr, "received something: %s\n", buffer);
 	return 0;
 }
 
@@ -83,6 +83,7 @@ static int handle_get_name(char *err_msg) {
 	string path;
 	if (get_absolute_path(path) == -1)
 		return -1;
+	cerr << "path = " << path << "\n";
 	snprintf(err_msg, MAX_LEN, "%s %d", path.c_str(), 0);
 	return 0;
 }
@@ -213,6 +214,10 @@ static int handle_add(int fix_id, const string &file_name, char *err_msg) {
 	}
 
 	vector<int> checks, funcs;
+#if 1
+	funcs.push_back(3671);
+#endif
+#if 0
 	if (get_checks_and_funcs(fix, checks, funcs, err_msg) == -1)
 		return -1;
 	if (fix.type == ORDER)
@@ -229,16 +234,21 @@ static int handle_add(int fix_id, const string &file_name, char *err_msg) {
 		usleep(10 * 1000);
 	}
 	fprintf(stderr, "deactivated\n");
+#endif
 
 	if (add_fix(fix_id, fix) == -1) {
 		snprintf(err_msg, MAX_LEN, "Unable to add fix");
+#if 0
 		activate();
+#endif
 		return -1;
 	}
 	for (size_t i = 0; i < funcs.size(); ++i)
 		is_func_patched[funcs[i]] = 1;
+#if 0
 	activate();
 	snprintf(err_msg, MAX_LEN, "OK %d %d", n_deact, n_tries);
+#endif
 
 	return 0;
 }
@@ -335,6 +345,7 @@ int handle_client_requests(void *arg) {
 	daemon_sock = create_daemon_socket();
 	if (daemon_sock == -1)
 		return -1;
+	sleep(1);
 	fprintf(stderr, "daemon_sock after clone = %d\n", daemon_sock);
 	while (true) {
 		string msg;

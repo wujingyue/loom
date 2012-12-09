@@ -48,6 +48,9 @@ parser: parser.o libparser.a
 run: parser
 	./parser fix_test.conf parser.out >/dev/null
 
+# Do nothing
+install:
+
 clean:
 	rm -f parser.y.c parser.y.h
 	rm -f parser.l.c

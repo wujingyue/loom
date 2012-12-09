@@ -3,9 +3,10 @@
 
 #include <pthread.h>
 
-typedef volatile long spin_rwlock_t;
+// FIXME: Use long instead of int
+typedef volatile int spin_rwlock_t;
 // typedef pthread_rwlock_t spin_rwlock_t;
-typedef volatile long atomic_t;
+typedef volatile int atomic_t;
 
 #define USE_ATOMIC
 

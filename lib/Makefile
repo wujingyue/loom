@@ -1,5 +1,5 @@
-LEVEL = .
+LEVEL = ..
 
-DIRS = lib runtime
+DIRS = Instrumenter
 
 include $(LEVEL)/Makefile.common

@@ -1,0 +1,15 @@
+*Release+Asserts/
+*Debug+Asserts/
+*Release/
+*Debug/
+aclocal.m4
+autom4te.cache
+Makefile.common
+*.swp
+config.log
+config.status
+loom-on-pin/
+loom-expr-parser/
+tools/
+src-locator-wrapper/
+fixes/

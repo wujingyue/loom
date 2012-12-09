@@ -25,14 +25,21 @@ if __name__ == "__main__":
     padding_inlined = input + "3"
 
     print >> sys.stderr, "Stage 1: Cloning all functions in the program..."
-    os.system("./opt.py idm clone-func < " + input + " > " + func_cloned)
+    llvm_root_dir = os.getenv("LLVM_ROOT")
+    os.system("opt -o " + func_cloned +
+            " -load " + llvm_root_dir + "/install/lib/libid-manager.so " +
+            " -load " + llvm_root_dir + "/install/lib/libloom-bit.so " +
+            " -clone-func < " + input)
     
     print >> sys.stderr, "Stage 2: Injecting hook functions..."
-    os.system("./opt.py idm inject-hook < " + func_cloned + " > " + hook_injected)
+    os.system("opt -o " + hook_injected +
+            " -load " + llvm_root_dir + "/install/lib/libid-manager.so " +
+            " -load " + llvm_root_dir + "/install/lib/libloom-bit.so " +
+            " -inject-hook < " + func_cloned)
 
     print >> sys.stderr, "Stage 3: Generating the all-in-one .bc..."
     if options.inline:
-        os.system("llvm-ld -o /tmp/loom_tmp " + hook_injected + " " + os.environ["DEFENS_ROOT"] + "/loom-bit/stub.bc")
+        os.system("llvm-ld -o /tmp/loom_tmp " + hook_injected + " " + os.getenv("LOOM_ROOT") + "lib/loom-bit/stub.bc")
         os.system("mv /tmp/loom_tmp.bc " + padding_inlined)
     else:
         padding_inlined = hook_injected

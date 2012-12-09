@@ -9,10 +9,10 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#include "sync.h"
-#include "loom.h"
-#include "daemon.h"
-#include "fixes.h"
+#include "loom/sync.h"
+#include "loom/loom.h"
+#include "loom/daemon.h"
+#include "loom/fixes.h"
 
 using namespace std;
 
@@ -50,6 +50,7 @@ int start_daemon() {
 	}
 	daemon_pid = clone(handle_client_requests, child_stack, CLONE_VM, NULL);
 	fprintf(stderr, "daemon_pid = %d\n", daemon_pid);
+	sleep(3);
 	return 0;
 }
 

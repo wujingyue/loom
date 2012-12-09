@@ -17,8 +17,8 @@
 #include <sys/prctl.h>
 #include <pthread.h>
 
-#include "loom.h"
-#include "fixes.h"
+#include "loom/loom.h"
+#include "loom/fixes.h"
 
 using namespace std;
 

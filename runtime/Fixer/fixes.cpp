@@ -1,8 +1,8 @@
 #define _REENTRANT
 
-#include "loom.h"
-#include "fixes.h"
-#include "sync_objs.h"
+#include "loom/loom.h"
+#include "loom/fixes.h"
+#include "loom/sync_objs.h"
 
 #include <fstream>
 #include <iostream>

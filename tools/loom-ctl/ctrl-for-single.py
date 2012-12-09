@@ -18,6 +18,7 @@ def send_message(conn, msg):
 
 def recv_message(conn):
     str_pack_len = conn.recv(4)
+    print "len(str_pack_len) =", len(str_pack_len)
     if len(str_pack_len) != 4:
         return -1, ''
     pack_len = struct.unpack('!i', str_pack_len)[0]
@@ -41,8 +42,10 @@ def Main():
     print 'Waiting for connections...'
     conn, addr = sock.accept()
     print 'Connected by', addr
-    send_message(conn, 'get_name')
+    rv = send_message(conn, 'get_name')
+    assert rv == 0
     ret, buffer = recv_message(conn)
+    assert ret == 0
     print 'Response:', buffer
     while True:
         cmd = sys.stdin.readline().strip()

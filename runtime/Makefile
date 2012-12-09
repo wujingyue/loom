@@ -1,5 +1,5 @@
-LEVEL = .
+LEVEL = ..
 
-DIRS = lib runtime
+DIRS = Fixer
 
 include $(LEVEL)/Makefile.common
