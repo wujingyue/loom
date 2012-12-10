@@ -1,8 +1,7 @@
 LEVEL = ../..
 
-LIBRARYNAME = loom-bit
+LIBRARYNAME = Instrumenter
 
 LOADABLE_MODULE = 1
 
-CXXFLAGS += -I$(LLVM_ROOT)/install/include
 include $(LEVEL)/Makefile.common
