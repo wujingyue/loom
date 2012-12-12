@@ -1,6 +1,6 @@
 LEVEL = ../..
 
-LIBRARYNAME = Instrumenter
+LIBRARYNAME = LoomInstrumenter
 
 LOADABLE_MODULE = 1
 
