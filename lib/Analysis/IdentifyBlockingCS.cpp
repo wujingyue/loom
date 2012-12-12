@@ -1,5 +1,8 @@
+#define DEBUG_TYPE "loom"
+
 #include <string>
 
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CallSite.h"
 
 #include "loom/IdentifyBlockingCS.h"
@@ -12,6 +15,8 @@ static RegisterPass<IdentifyBlockingCS> X(
     "Identify blocking external call sites",
     false,
     true);
+
+STATISTIC(NumBlockingCallSites, "Number of blocking external call sites");
 
 char IdentifyBlockingCS::ID = 0;
 
@@ -61,6 +66,7 @@ bool IdentifyBlockingCS::runOnModule(Module &M) {
       }
     }
   }
+  NumBlockingCallSites = CallSite2ID.size();
   return false;
 }
 
