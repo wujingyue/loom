@@ -252,7 +252,7 @@ void CheckInserter::insertThreadChecks(Function &F) {
       CallSite CS(I);
       if (CS) {
         Function *Callee = CS.getCalledFunction();
-        if (Callee->getName() == "pthread_exit") {
+        if (Callee && Callee->getName() == "pthread_exit") {
           CallInst::Create(ExitThread,
                            ConstantInt::get(IntType, -1), // invalid ID
                            "",
