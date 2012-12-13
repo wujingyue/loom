@@ -2,14 +2,18 @@
 #include <cstdlib>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #include "Updater.h"
 
 static int DaemonPID = -1;
 
 int RunDaemon(void *Arg) {
+  if (prctl(PR_SET_NAME, "loom-daemon", 0, 0, 0) == -1) {
+    perror("prctl");
+  }
   while (1) {
-    printf("daemon is running...\n");
+    fprintf(stderr, "daemon is running...\n");
     sleep(1);
   }
   return 0;
