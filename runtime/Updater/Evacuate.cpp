@@ -7,36 +7,18 @@
 
 using namespace std;
 
-extern "C" void LoomCycleCheck(unsigned BackEdgeID) {
-  if (LoomWait[BackEdgeID]) {
-    pthread_rwlock_unlock(&LoomUpdateLock);
-    while (LoomWait[BackEdgeID]);
-    pthread_rwlock_rdlock(&LoomUpdateLock);
-  }
-}
-
-extern "C" void LoomBeforeBlocking(unsigned CallSiteID) {
-  atomic_inc(&LoomCounter[CallSiteID]);
-  pthread_rwlock_unlock(&LoomUpdateLock);
-}
-
-extern "C" void LoomAfterBlocking(unsigned CallSiteID) {
-  pthread_rwlock_rdlock(&LoomUpdateLock);
-  atomic_dec(&LoomCounter[CallSiteID]);
-}
-
-extern "C" void LoomEnterThread() {
-  pthread_rwlock_rdlock(&LoomUpdateLock);
-}
-
-extern "C" void LoomExitThread() {
-  pthread_rwlock_unlock(&LoomUpdateLock);
-}
+extern "C" void LoomEnterProcess();
+extern "C" void LoomExitProcess();
+extern "C" void LoomEnterThread();
+extern "C" void LoomExitThread();
+extern "C" void LoomCycleCheck(unsigned BackEdgeID);
+extern "C" void LoomBeforeBlocking(unsigned CallSiteID);
+extern "C" void LoomAfterBlocking(unsigned CallSiteID);
 
 // LoomEnterProcess is called before all global_ctors including the constructor
 // of iostream stuff. Make it pure C.
 // Similar rules go to LoomExitProcess.
-extern "C" void LoomEnterProcess() {
+void LoomEnterProcess() {
   fprintf(stderr, "***** LoomEnterProcess *****\n");
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));
@@ -44,15 +26,43 @@ extern "C" void LoomEnterProcess() {
   LoomEnterThread();
 }
 
-extern "C" void LoomExitProcess() {
+void LoomExitProcess() {
   fprintf(stderr, "***** LoomExitProcess *****\n");
   LoomExitThread();
+  for (unsigned i = 0; i < MaxNumInsts; ++i)
+    ClearOperations(LoomOperations[i]);
 }
 
-void EvacuateAndUpdate(const set<int> &UnsafeBackEdges,
-                       const set<int> &UnsafeCallSites) {
+void LoomEnterThread() {
+  pthread_rwlock_rdlock(&LoomUpdateLock);
+}
+
+void LoomExitThread() {
+  pthread_rwlock_unlock(&LoomUpdateLock);
+}
+
+void LoomCycleCheck(unsigned BackEdgeID) {
+  if (LoomWait[BackEdgeID]) {
+    pthread_rwlock_unlock(&LoomUpdateLock);
+    while (LoomWait[BackEdgeID]);
+    pthread_rwlock_rdlock(&LoomUpdateLock);
+  }
+}
+
+void LoomBeforeBlocking(unsigned CallSiteID) {
+  atomic_inc(&LoomCounter[CallSiteID]);
+  pthread_rwlock_unlock(&LoomUpdateLock);
+}
+
+void LoomAfterBlocking(unsigned CallSiteID) {
+  pthread_rwlock_rdlock(&LoomUpdateLock);
+  atomic_dec(&LoomCounter[CallSiteID]);
+}
+
+void EvacuateAndUpdate(const set<unsigned> &UnsafeBackEdges,
+                       const set<unsigned> &UnsafeCallSites) {
   // Turn on wait flags for all safe back edges.
-  for (int i = 0; i < MaxNumBackEdges; ++i) {
+  for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
     if (!UnsafeBackEdges.count(i))
       LoomWait[i] = true;
   }
@@ -61,7 +71,7 @@ void EvacuateAndUpdate(const set<int> &UnsafeBackEdges,
   while (true) {
     pthread_rwlock_wrlock(&LoomUpdateLock);
     bool InBlockingCallSite = false;
-    for (set<int>::const_iterator I = UnsafeCallSites.begin();
+    for (set<unsigned>::const_iterator I = UnsafeCallSites.begin();
          I != UnsafeCallSites.end();
          ++I) {
       if (LoomCounter[*I] > 0) {

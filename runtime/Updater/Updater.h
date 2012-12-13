@@ -5,8 +5,9 @@
 
 #include "Sync.h"
 
-static const int MaxNumBackEdges = 65536;
-static const int MaxNumBlockingCS = 65536;
+static const unsigned MaxNumBackEdges = 65536;
+static const unsigned MaxNumBlockingCS = 65536;
+static const unsigned MaxNumInsts = 2000000;
 
 volatile bool LoomWait[MaxNumBackEdges];
 volatile atomic_t LoomCounter[MaxNumBlockingCS];
