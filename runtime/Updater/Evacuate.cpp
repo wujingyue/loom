@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <set>
 
 #include "Updater.h"
 
@@ -46,4 +47,39 @@ extern "C" void LoomEnterProcess() {
 extern "C" void LoomExitProcess() {
   fprintf(stderr, "***** LoomExitProcess *****\n");
   LoomExitThread();
+}
+
+void EvacuateAndUpdate(const set<int> &UnsafeBackEdges,
+                       const set<int> &UnsafeCallSites) {
+  // Turn on wait flags for all safe back edges.
+  for (int i = 0; i < MaxNumBackEdges; ++i) {
+    if (!UnsafeBackEdges.count(i))
+      LoomWait[i] = true;
+  }
+
+  // Make sure nobody is running inside an unsafe call site.
+  while (true) {
+    pthread_rwlock_wrlock(&LoomUpdateLock);
+    bool InBlockingCallSite = false;
+    for (set<int>::const_iterator I = UnsafeCallSites.begin();
+         I != UnsafeCallSites.end();
+         ++I) {
+      if (LoomCounter[*I] > 0) {
+        InBlockingCallSite = true;
+        break;
+      }
+    }
+    if (!InBlockingCallSite) {
+      break;
+    }
+    pthread_rwlock_unlock(&LoomUpdateLock);
+  }
+
+  // Update.
+
+  // Restore wait flags and counters.
+  memset((void *)LoomWait, 0, sizeof(LoomWait));
+
+  // Resume application threads.
+  pthread_rwlock_unlock(&LoomUpdateLock);
 }
