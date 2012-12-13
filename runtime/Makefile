@@ -1,5 +1,5 @@
 LEVEL = ..
 
-DIRS = Fixer
+DIRS = Updater
 
 include $(LEVEL)/Makefile.common
