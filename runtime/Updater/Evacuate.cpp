@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <set>
@@ -6,6 +7,10 @@
 #include "Updater.h"
 
 using namespace std;
+
+volatile bool LoomWait[MaxNumBackEdges];
+atomic_t LoomCounter[MaxNumBlockingCS];
+pthread_rwlock_t LoomUpdateLock;
 
 extern "C" void LoomEnterProcess();
 extern "C" void LoomExitProcess();
@@ -24,14 +29,21 @@ void LoomEnterProcess() {
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));
   memset((void *)LoomOperations, 0, sizeof(LoomOperations));
+  if (StartDaemon() == -1) {
+    fprintf(stderr, "failed to start the loom daemon. abort...\n");
+    exit(1);
+  }
   LoomEnterThread();
 }
 
 void LoomExitProcess() {
-  fprintf(stderr, "***** LoomExitProcess *****\n");
   LoomExitThread();
+  if (StopDaemon() == -1) {
+    fprintf(stderr, "failed to stop the loom daemon\n");
+  }
   for (unsigned i = 0; i < MaxNumInsts; ++i)
     ClearOperations(LoomOperations[i]);
+  fprintf(stderr, "***** LoomExitProcess *****\n");
 }
 
 void LoomEnterThread() {

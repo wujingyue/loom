@@ -10,10 +10,14 @@ static const unsigned MaxNumBackEdges = 65536;
 static const unsigned MaxNumBlockingCS = 65536;
 static const unsigned MaxNumInsts = 2000000;
 
-volatile bool LoomWait[MaxNumBackEdges];
-volatile atomic_t LoomCounter[MaxNumBlockingCS];
-Operation *LoomOperations[MaxNumInsts];
+// evacuation algorithm
+extern volatile bool LoomWait[MaxNumBackEdges];
+extern atomic_t LoomCounter[MaxNumBlockingCS];
+extern pthread_rwlock_t LoomUpdateLock;
+// slot operations
+extern Operation *LoomOperations[MaxNumInsts];
 
-pthread_rwlock_t LoomUpdateLock;
+int StartDaemon();
+int StopDaemon();
 
 #endif
