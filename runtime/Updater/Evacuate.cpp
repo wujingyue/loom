@@ -23,6 +23,7 @@ void LoomEnterProcess() {
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));
+  memset((void *)LoomOperations, 0, sizeof(LoomOperations));
   LoomEnterThread();
 }
 
