@@ -1,8 +1,9 @@
+#include <cstring>
+#include <iostream>
+
 #include "Updater.h"
 
-extern "C" void LoomInit() {
-  pthread_rwlock_init(&LoomUpdateLock, NULL);
-}
+using namespace std;
 
 extern "C" void LoomCycleCheck(unsigned BackEdgeID) {
   if (LoomWait[BackEdgeID]) {
@@ -22,10 +23,23 @@ extern "C" void LoomAfterBlocking(unsigned CallSiteID) {
   atomic_dec(&LoomCounter[CallSiteID]);
 }
 
-extern "C" void LoomEnterThread(unsigned) {
+extern "C" void LoomEnterThread() {
   pthread_rwlock_rdlock(&LoomUpdateLock);
 }
 
-extern "C" void LoomExitThread(unsigned) {
+extern "C" void LoomExitThread() {
   pthread_rwlock_unlock(&LoomUpdateLock);
+}
+
+extern "C" void LoomEnterProcess() {
+  cerr << "***** LoomEnterProcess *****\n";
+  pthread_rwlock_init(&LoomUpdateLock, NULL);
+  memset((void *)LoomWait, 0, sizeof(LoomWait));
+  memset((void *)LoomCounter, 0, sizeof(LoomCounter));
+  LoomEnterThread();
+}
+
+extern "C" void LoomExitProcess() {
+  cerr << "***** LoomExitProcess *****\n";
+  LoomExitThread();
 }

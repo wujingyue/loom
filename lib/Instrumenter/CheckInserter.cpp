@@ -95,11 +95,11 @@ bool CheckInserter::doInitialization(Module &M) {
                                    "LoomAfterBlocking",
                                    &M);
 
-  EnterThread = Function::Create(CheckType,
+  EnterThread = Function::Create(IniterType,
                                  GlobalValue::ExternalLinkage,
                                  "LoomEnterThread",
                                  &M);
-  ExitThread = Function::Create(CheckType,
+  ExitThread = Function::Create(IniterType,
                                 GlobalValue::ExternalLinkage,
                                 "LoomExitThread",
                                 &M);
