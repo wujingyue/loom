@@ -29,7 +29,9 @@ struct CheckInserter: public FunctionPass {
  private:
   static void InsertAfter(Instruction *I, Instruction *Pos);
 
+  void checkFeatures(Module &M);
   void checkFeatures(Function &F);
+
   void insertCycleChecks(Function &F);
   void insertBlockingChecks(Function &F);
   void insertThreadChecks(Function &F);
@@ -73,6 +75,8 @@ void CheckInserter::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool CheckInserter::doInitialization(Module &M) {
+  checkFeatures(M);
+
   // setup scalar types
   VoidType = Type::getVoidTy(M.getContext());
   IntType = Type::getInt32Ty(M.getContext());
@@ -118,6 +122,25 @@ bool CheckInserter::doInitialization(Module &M) {
 }
 
 // Check the assumptions we made.
+void CheckInserter::checkFeatures(Module &M) {
+  // We do not support the situation where some important functions are called
+  // via a function pointer, e.g. pthread_exit, pthread_create, and fork.
+  for (Module::iterator F = M.begin(); F != M.end(); ++F) {
+    if (F->getName() == "pthread_exit" ||
+        F->getName() == "pthread_create" ||
+        F->getName() == "fork") {
+      for (Value::use_iterator UI = F->use_begin(); UI != F->use_end(); ++UI) {
+        User *Usr = *UI;
+        assert(isa<CallInst>(Usr) || isa<InvokeInst>(Usr));
+        CallSite CS(cast<Instruction>(Usr));
+        for (unsigned i = 0; i < CS.arg_size(); ++i)
+          assert(CS.getArgument(i) != F);
+      }
+    }
+  }
+}
+
+// Check the assumptions we made.
 void CheckInserter::checkFeatures(Function &F) {
   // InvokeInst's unwind destination has only one predecessor.
   for (Function::iterator B = F.begin(); B != F.end(); ++B) {
@@ -127,8 +150,22 @@ void CheckInserter::checkFeatures(Function &F) {
       }
     }
   }
-  // TODO: We do not support the situation where pthread_exit is called via
-  // a function pointer. Need to check this assumption.
+
+  // We do not support the situation where a thread function is called
+  // directly without using pthread_create.
+  IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
+  if (IDF.isThreadFunction(F)) {
+    for (Value::use_iterator UI = F.use_begin(); UI != F.use_end(); ++UI) {
+      CallSite CS(*UI);
+      assert(CS);
+      Function *Callee = CS.getCalledFunction();
+      assert(Callee && Callee->getName() == "pthread_create");
+      // Assume <F> is the first argument of pthread_create.
+      assert(CS.arg_size() > 0 && CS.getArgument(0) == &F);
+      for (unsigned i = 1; i < CS.arg_size(); ++i)
+        assert(CS.getArgument(i) != &F);
+    }
+  }
 }
 
 bool CheckInserter::runOnFunction(Function &F) {
@@ -209,7 +246,31 @@ void CheckInserter::insertCycleChecks(Function &F) {
                          "",
                          BackEdgeBlock);
         // BackEdgeBlock -> B2
+        // Fix the PHINodes in B2.
         BranchInst::Create(B2, BackEdgeBlock);
+        for (BasicBlock::iterator I = B2->begin();
+             B2->getFirstNonPHI() != I;
+             ++I) {
+          PHINode *PHI = cast<PHINode>(I);
+          // Note: If B2 has multiple incoming edges from B1 (e.g. B1 terminates
+          // with a SelectInst), its PHINodes must also have multiple incoming
+          // edges from B1. However, after adding BackEdgeBlock and essentially
+          // merging the multiple incoming edges from B1, there will be only one
+          // edge from BackEdgeBlock to B2. Therefore, we need to remove the
+          // redundant incoming edges from B2's PHINodes.
+          bool FirstIncomingFromB1 = true;
+          for (unsigned k = 0; k < PHI->getNumIncomingValues(); ++k) {
+            if (PHI->getIncomingBlock(k) == B1) {
+              if (FirstIncomingFromB1) {
+                FirstIncomingFromB1 = false;
+                PHI->setIncomingBlock(k, BackEdgeBlock);
+              } else {
+                PHI->removeIncomingValue(k, false);
+                --k;
+              }
+            }
+          }
+        }
         // B1 -> BackEdgeBlock
         // There might be multiple back edges from B1 to B2. Need to replace
         // them all.
