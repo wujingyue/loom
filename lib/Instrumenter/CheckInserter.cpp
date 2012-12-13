@@ -253,10 +253,7 @@ void CheckInserter::insertThreadChecks(Function &F) {
       if (CS) {
         Function *Callee = CS.getCalledFunction();
         if (Callee && Callee->getName() == "pthread_exit") {
-          CallInst::Create(ExitThread,
-                           ConstantInt::get(IntType, -1), // invalid ID
-                           "",
-                           I);
+          CallInst::Create(ExitThread, "", I);
         }
       }
     }
@@ -265,17 +262,11 @@ void CheckInserter::insertThreadChecks(Function &F) {
   // If <F> is a thread function, add EnterThread at its entry, and add
   // ExitThread at its exits.
   if (IDF.isThreadFunction(F)) {
-    CallInst::Create(EnterThread,
-                     ConstantInt::get(IntType, -1), // invalid ID
-                     "",
-                     F.begin()->getFirstInsertionPt());
+    CallInst::Create(EnterThread, "", F.begin()->getFirstInsertionPt());
     for (Function::iterator B = F.begin(); B != F.end(); ++B) {
       TerminatorInst *TI = B->getTerminator();
       if (isa<ReturnInst>(TI)) {
-        CallInst::Create(ExitThread,
-                         ConstantInt::get(IntType, -1), // invalid ID
-                         "",
-                         B->getTerminator());
+        CallInst::Create(ExitThread, "", B->getTerminator());
       }
     }
   }

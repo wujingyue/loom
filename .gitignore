@@ -10,6 +10,5 @@ config.log
 config.status
 loom-on-pin/
 loom-expr-parser/
-tools/
 src-locator-wrapper/
 fixes/

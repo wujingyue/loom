@@ -1,5 +1,5 @@
 LEVEL = .
 
-DIRS = lib runtime
+DIRS = lib runtime tools
 
 include $(LEVEL)/Makefile.common
