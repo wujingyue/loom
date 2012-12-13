@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 
@@ -31,8 +32,11 @@ extern "C" void LoomExitThread() {
   pthread_rwlock_unlock(&LoomUpdateLock);
 }
 
+// LoomEnterProcess is called before all global_ctors including the constructor
+// of iostream stuff. Make it pure C.
+// Similar rules go to LoomExitProcess.
 extern "C" void LoomEnterProcess() {
-  cerr << "***** LoomEnterProcess *****\n";
+  fprintf(stderr, "***** LoomEnterProcess *****\n");
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));
@@ -40,6 +44,6 @@ extern "C" void LoomEnterProcess() {
 }
 
 extern "C" void LoomExitProcess() {
-  cerr << "***** LoomExitProcess *****\n";
+  fprintf(stderr, "***** LoomExitProcess *****\n");
   LoomExitThread();
 }
