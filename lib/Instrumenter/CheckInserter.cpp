@@ -34,8 +34,12 @@ struct CheckInserter: public FunctionPass {
 
   void insertCycleChecks(Function &F);
   void insertBlockingChecks(Function &F);
-  void insertThreadChecks(Function &F);
   bool addCtorOrDtor(Module &M, Function &F, const string &GlobalName);
+
+  void instrumentThread(Function &F);
+  void instrumentFork(Function &F);
+  void instrumentFork(BasicBlock *B, Instruction *I);
+  void instrumentProgramEntry(Function &F);
 
   // scalar types
   Type *VoidType, *IntType;
@@ -45,7 +49,7 @@ struct CheckInserter: public FunctionPass {
   Function *CycleCheck;
   Function *BeforeBlocking, *AfterBlocking;
   Function *EnterThread, *ExitThread;
-  Function *EnterProcess, *ExitProcess;
+  Function *EnterProcess, *EnterForkedProcess;
 };
 }
 
@@ -112,10 +116,10 @@ bool CheckInserter::doInitialization(Module &M) {
                                   GlobalValue::ExternalLinkage,
                                   "LoomEnterProcess",
                                   &M);
-  ExitProcess = Function::Create(IniterType,
-                                 GlobalValue::ExternalLinkage,
-                                 "LoomExitProcess",
-                                 &M);
+  EnterForkedProcess = Function::Create(IniterType,
+                                        GlobalValue::ExternalLinkage,
+                                        "LoomEnterForkedProcess",
+                                        &M);
 
   // Return true because we added new function declarations.
   return true;
@@ -160,10 +164,12 @@ void CheckInserter::checkFeatures(Function &F) {
       assert(CS);
       Function *Callee = CS.getCalledFunction();
       assert(Callee && Callee->getName() == "pthread_create");
-      // Assume <F> is the first argument of pthread_create.
-      assert(CS.arg_size() > 0 && CS.getArgument(0) == &F);
-      for (unsigned i = 1; i < CS.arg_size(); ++i)
-        assert(CS.getArgument(i) != &F);
+      // Assume <F> is the third argument of pthread_create.
+      assert(CS.arg_size() > 2 && CS.getArgument(2) == &F);
+      for (unsigned i = 0; i < CS.arg_size(); ++i) {
+        if (i != 2)
+          assert(CS.getArgument(i) != &F);
+      }
     }
   }
 }
@@ -173,17 +179,22 @@ bool CheckInserter::runOnFunction(Function &F) {
 
   insertCycleChecks(F);
   insertBlockingChecks(F);
-  // Run insertThreadChecks after the other two.
-  insertThreadChecks(F);
+
+  instrumentThread(F);
+  instrumentFork(F);
+  instrumentProgramEntry(F);
 
   return true;
 }
 
 bool CheckInserter::doFinalization(Module &M) {
+#if 0
   bool Result = false;
   Result |= addCtorOrDtor(M, *EnterProcess, "llvm.global_ctors");
   Result |= addCtorOrDtor(M, *ExitProcess, "llvm.global_dtors");
   return Result;
+#endif
+  return false;
 }
 
 bool CheckInserter::addCtorOrDtor(Module &M,
@@ -304,7 +315,7 @@ void CheckInserter::insertBlockingChecks(Function &F) {
   }
 }
 
-void CheckInserter::insertThreadChecks(Function &F) {
+void CheckInserter::instrumentThread(Function &F) {
   IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
 
   // Add LoomExitThread before each pthread_exit().
@@ -331,4 +342,59 @@ void CheckInserter::insertThreadChecks(Function &F) {
       }
     }
   }
+}
+
+// We do not use pthread_atfork, because Loom daemon is forked as well, and we
+// do not want the daemon to call LoomEnterForkedProcess().
+void CheckInserter::instrumentFork(Function &F) {
+  for (Function::iterator B = F.begin(); B != F.end(); ++B) {
+    for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
+      CallSite CS(I);
+      if (CS) {
+        Function *Callee = CS.getCalledFunction();
+        if (Callee && Callee->getName() == "fork") {
+          instrumentFork(B, I);
+          // instrumentFork calls splitBasicBlock which invalidates <I>.
+          break;
+        }
+      }
+    }
+  }
+}
+
+// Let the child process to call LoomEnterForkedProcess.
+void CheckInserter::instrumentFork(BasicBlock *B, Instruction *I) {
+  // xxx
+  // R = fork()
+  // yyy
+  //
+  // =>
+  // xxx
+  // R = fork()
+  // if (R == 0 /* is child */)
+  //   LoomEnterForkedProcess()
+  // yyy
+  assert(isa<CallInst>(I));
+  BasicBlock::iterator Next = I; ++Next;
+  BasicBlock *Rest = B->splitBasicBlock(Next);
+  Rest->setName("rest");
+  B->getTerminator()->eraseFromParent();
+
+  BasicBlock *Call = BasicBlock::Create(B->getContext(),
+                                        "EnterForkedProcess",
+                                        B->getParent());
+  CallInst::Create(EnterForkedProcess, "", Call);
+  BranchInst::Create(Rest, Call);
+
+  ICmpInst *IsChild = new ICmpInst(*B,
+                                   CmpInst::ICMP_EQ,
+                                   I,
+                                   ConstantInt::get(IntType, 0));
+  BranchInst::Create(Call, Rest, IsChild, B);
+}
+
+void CheckInserter::instrumentProgramEntry(Function &F) {
+  if (F.getName() != "main" || F.hasLocalLinkage())
+    return;
+  CallInst::Create(EnterProcess, "", F.begin()->getFirstInsertionPt());
 }

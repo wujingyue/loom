@@ -8,7 +8,8 @@
 
 static int DaemonPID = -1;
 
-int RunDaemon(void *Arg) {
+int RunDaemon(void *) {
+  signal(SIGTERM, SIG_DFL);
   if (prctl(PR_SET_NAME, "loom-daemon", 0, 0, 0) == -1) {
     perror("prctl");
   }
@@ -20,7 +21,7 @@ int RunDaemon(void *Arg) {
 }
 
 int StartDaemon() {
-	static const int ChildStackSize = 1024 * 1024;
+	static const int ChildStackSize = 20 * 1024 * 1024;
 	char *ChildStack = (char *)malloc(ChildStackSize);
 	if (!ChildStack) {
 		perror("malloc");
@@ -38,7 +39,9 @@ int StartDaemon() {
 }
 
 int StopDaemon() {
+  fprintf(stderr, "StopDaemon\n");
   if (DaemonPID != -1) {
+    fprintf(stderr, "Kill %d\n", DaemonPID);
     if (kill(DaemonPID, SIGTERM) == -1) {
       perror("kill");
       return -1;

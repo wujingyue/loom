@@ -13,6 +13,7 @@ atomic_t LoomCounter[MaxNumBlockingCS];
 pthread_rwlock_t LoomUpdateLock;
 
 extern "C" void LoomEnterProcess();
+extern "C" void LoomEnterForkedProcess();
 extern "C" void LoomExitProcess();
 extern "C" void LoomEnterThread();
 extern "C" void LoomExitThread();
@@ -20,15 +21,24 @@ extern "C" void LoomCycleCheck(unsigned BackEdgeID);
 extern "C" void LoomBeforeBlocking(unsigned CallSiteID);
 extern "C" void LoomAfterBlocking(unsigned CallSiteID);
 
-// LoomEnterProcess is called before all global_ctors including the constructor
-// of iostream stuff. Make it pure C.
-// Similar rules go to LoomExitProcess.
 void LoomEnterProcess() {
+  atexit(LoomExitProcess);
   fprintf(stderr, "***** LoomEnterProcess *****\n");
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));
   memset((void *)LoomOperations, 0, sizeof(LoomOperations));
+  if (StartDaemon() == -1) {
+    fprintf(stderr, "failed to start the loom daemon. abort...\n");
+    exit(1);
+  }
+  LoomEnterThread();
+}
+
+void LoomEnterForkedProcess() {
+  fprintf(stderr, "***** LoomEnterForkedProcess *****\n");
+  pthread_rwlock_destroy(&LoomUpdateLock);
+  memset((void *)LoomWait, 0, sizeof(LoomWait));
   if (StartDaemon() == -1) {
     fprintf(stderr, "failed to start the loom daemon. abort...\n");
     exit(1);
