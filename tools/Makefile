@@ -2,7 +2,7 @@ LEVEL = ..
 
 include $(LEVEL)/Makefile.common
 
-Scripts = loom_instrument.py
+Scripts = loom_instrument.py loom_view_proc.py
 
 install-local::
 	$(Verb) for script in $(Scripts) ; do \
