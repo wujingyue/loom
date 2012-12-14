@@ -8,7 +8,4 @@ Makefile.common
 *.swp
 config.log
 config.status
-loom-on-pin/
-loom-expr-parser/
-src-locator-wrapper/
 fixes/
