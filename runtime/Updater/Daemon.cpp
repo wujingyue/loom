@@ -6,10 +6,11 @@
 
 #include "Updater.h"
 
-static int DaemonPID = -1;
+static pthread_t DaemonTID;
 
-int RunDaemon(void *) {
-  signal(SIGTERM, SIG_DFL);
+void *RunDaemon(void *) {
+  // set the thread name
+  // We can "ps c" to view it.
   if (prctl(PR_SET_NAME, "loom-daemon", 0, 0, 0) == -1) {
     perror("prctl");
   }
@@ -17,35 +18,22 @@ int RunDaemon(void *) {
     fprintf(stderr, "daemon is running...\n");
     sleep(1);
   }
-  return 0;
+  return NULL;
 }
 
 int StartDaemon() {
-	static const int ChildStackSize = 20 * 1024 * 1024;
-	char *ChildStack = (char *)malloc(ChildStackSize);
-	if (!ChildStack) {
-		perror("malloc");
-		return -1;
-	}
-
-	DaemonPID = clone(RunDaemon, ChildStack + ChildStackSize, CLONE_VM, NULL);
-  if (DaemonPID == -1) {
-    perror("clone");
+  if (pthread_create(&DaemonTID, NULL, RunDaemon, NULL) == -1) {
+    perror("pthread_create");
     return -1;
   }
 
-	fprintf(stderr, "Daemon PID = %d\n", DaemonPID);
+	fprintf(stderr, "Daemon TID = %lu\n", DaemonTID);
 	return 0;
 }
 
 int StopDaemon() {
   fprintf(stderr, "StopDaemon\n");
-  if (DaemonPID != -1) {
-    fprintf(stderr, "Kill %d\n", DaemonPID);
-    if (kill(DaemonPID, SIGTERM) == -1) {
-      perror("kill");
-      return -1;
-    }
-  }
+  // The daemon thread will be automatically killed by the parent process. No
+  // need to explicitly kill it.
   return 0;
 }
