@@ -22,8 +22,8 @@ extern "C" void LoomBeforeBlocking(unsigned CallSiteID);
 extern "C" void LoomAfterBlocking(unsigned CallSiteID);
 
 void LoomEnterProcess() {
-  atexit(LoomExitProcess);
   fprintf(stderr, "***** LoomEnterProcess *****\n");
+  atexit(LoomExitProcess);
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));

@@ -38,7 +38,6 @@ struct CheckInserter: public FunctionPass {
   void instrumentThread(Function &F);
   void instrumentFork(Function &F);
   void instrumentFork(BasicBlock *B, Instruction *I);
-  void instrumentProgramEntry(Function &F);
 
   // scalar types
   Type *VoidType, *IntType;
@@ -48,7 +47,7 @@ struct CheckInserter: public FunctionPass {
   Function *CycleCheck;
   Function *BeforeBlocking, *AfterBlocking;
   Function *EnterThread, *ExitThread;
-  Function *EnterProcess, *EnterForkedProcess;
+  Function *EnterProcess, *EnterForkedProcess, *ExitProcess;
 };
 }
 
@@ -118,6 +117,10 @@ bool CheckInserter::doInitialization(Module &M) {
                                         GlobalValue::ExternalLinkage,
                                         "LoomEnterForkedProcess",
                                         &M);
+  ExitProcess = Function::Create(IniterType,
+                                 GlobalValue::ExternalLinkage,
+                                 "LoomExitProcess",
+                                 &M);
 
   // Return true because we added new function declarations.
   return true;
@@ -162,19 +165,15 @@ bool CheckInserter::runOnFunction(Function &F) {
 
   instrumentThread(F);
   instrumentFork(F);
-  instrumentProgramEntry(F);
 
   return true;
 }
 
 bool CheckInserter::doFinalization(Module &M) {
-#if 0
   bool Result = false;
   Result |= addCtorOrDtor(M, *EnterProcess, "llvm.global_ctors");
   Result |= addCtorOrDtor(M, *ExitProcess, "llvm.global_dtors");
   return Result;
-#endif
-  return false;
 }
 
 bool CheckInserter::addCtorOrDtor(Module &M,
@@ -361,10 +360,4 @@ void CheckInserter::instrumentFork(BasicBlock *B, Instruction *I) {
                                    I,
                                    ConstantInt::get(IntType, 0));
   BranchInst::Create(Call, Rest, IsChild, B);
-}
-
-void CheckInserter::instrumentProgramEntry(Function &F) {
-  if (F.getName() != "main" || F.hasLocalLinkage())
-    return;
-  CallInst::Create(EnterProcess, "", F.begin()->getFirstInsertionPt());
 }
