@@ -7,8 +7,6 @@
 
 #include "Updater.h"
 
-static pthread_t DaemonTID;
-
 int BlockAllSignals() {
   sigset_t SigSet;
   if (sigfillset(&SigSet) == -1) {
@@ -54,6 +52,7 @@ void *RunDaemon(void *) {
 }
 
 int StartDaemon() {
+  pthread_t DaemonTID;
   if (pthread_create(&DaemonTID, NULL, RunDaemon, NULL) == -1) {
     perror("pthread_create");
     return -1;
