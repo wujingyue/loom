@@ -7,7 +7,6 @@
 
 #include "rcs/IDAssigner.h"
 #include "rcs/IdentifyBackEdges.h"
-#include "rcs/IdentifyThreadFuncs.h"
 
 #include "loom/IdentifyBlockingCS.h"
 
@@ -43,7 +42,7 @@ struct CheckInserter: public FunctionPass {
 
   // scalar types
   Type *VoidType, *IntType;
-  FunctionType *IniterType;
+  FunctionType *InitFiniType;
 
   // checks
   Function *CycleCheck;
@@ -73,7 +72,6 @@ void CheckInserter::InsertAfter(Instruction *I, Instruction *Pos) {
 }
 
 void CheckInserter::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<IdentifyThreadFuncs>();
   AU.addRequired<IdentifyBackEdges>();
   AU.addRequired<IdentifyBlockingCS>();
 }
@@ -87,7 +85,7 @@ bool CheckInserter::doInitialization(Module &M) {
 
   // setup checks
   FunctionType *CheckType = FunctionType::get(VoidType, IntType, false);
-  IniterType = FunctionType::get(VoidType, false);
+  InitFiniType = FunctionType::get(VoidType, false);
 
   CycleCheck = Function::Create(CheckType,
                                 GlobalValue::ExternalLinkage,
@@ -103,20 +101,20 @@ bool CheckInserter::doInitialization(Module &M) {
                                    "LoomAfterBlocking",
                                    &M);
 
-  EnterThread = Function::Create(IniterType,
+  EnterThread = Function::Create(InitFiniType,
                                  GlobalValue::ExternalLinkage,
                                  "LoomEnterThread",
                                  &M);
-  ExitThread = Function::Create(IniterType,
+  ExitThread = Function::Create(InitFiniType,
                                 GlobalValue::ExternalLinkage,
                                 "LoomExitThread",
                                 &M);
 
-  EnterProcess = Function::Create(IniterType,
+  EnterProcess = Function::Create(InitFiniType,
                                   GlobalValue::ExternalLinkage,
                                   "LoomEnterProcess",
                                   &M);
-  EnterForkedProcess = Function::Create(IniterType,
+  EnterForkedProcess = Function::Create(InitFiniType,
                                         GlobalValue::ExternalLinkage,
                                         "LoomEnterForkedProcess",
                                         &M);
@@ -128,10 +126,10 @@ bool CheckInserter::doInitialization(Module &M) {
 // Check the assumptions we made.
 void CheckInserter::checkFeatures(Module &M) {
   // We do not support the situation where some important functions are called
-  // via a function pointer, e.g. pthread_exit, pthread_create, and fork.
+  // via a function pointer, e.g. pthread_create, pthread_join and fork.
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
-    if (F->getName() == "pthread_exit" ||
-        F->getName() == "pthread_create" ||
+    if (F->getName() == "pthread_create" ||
+        F->getName() == "pthread_join" ||
         F->getName() == "fork") {
       for (Value::use_iterator UI = F->use_begin(); UI != F->use_end(); ++UI) {
         User *Usr = *UI;
@@ -151,24 +149,6 @@ void CheckInserter::checkFeatures(Function &F) {
     for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
       if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
         assert(II->getUnwindDest()->getUniquePredecessor() != NULL);
-      }
-    }
-  }
-
-  // We do not support the situation where a thread function is called
-  // directly without using pthread_create.
-  IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
-  if (IDF.isThreadFunction(F)) {
-    for (Value::use_iterator UI = F.use_begin(); UI != F.use_end(); ++UI) {
-      CallSite CS(*UI);
-      assert(CS);
-      Function *Callee = CS.getCalledFunction();
-      assert(Callee && Callee->getName() == "pthread_create");
-      // Assume <F> is the third argument of pthread_create.
-      assert(CS.arg_size() > 2 && CS.getArgument(2) == &F);
-      for (unsigned i = 0; i < CS.arg_size(); ++i) {
-        if (i != 2)
-          assert(CS.getArgument(i) != &F);
       }
     }
   }
@@ -205,7 +185,7 @@ bool CheckInserter::addCtorOrDtor(Module &M,
 
   // element type of llvm.global_ctors/llvm.global_dtors
   StructType *ST = StructType::get(IntType,
-                                   PointerType::getUnqual(IniterType),
+                                   PointerType::getUnqual(InitFiniType),
                                    NULL); // end with null
 
   // Move all existing elements of <GlobalName> to <Constants>.
@@ -316,29 +296,19 @@ void CheckInserter::insertBlockingChecks(Function &F) {
 }
 
 void CheckInserter::instrumentThread(Function &F) {
-  IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
-
-  // Add LoomExitThread before each pthread_exit().
+  // FIXME: we assume pthread_create and pthread_join always succeed for now.
   for (Function::iterator B = F.begin(); B != F.end(); ++B) {
     for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
       CallSite CS(I);
       if (CS) {
-        Function *Callee = CS.getCalledFunction();
-        if (Callee && Callee->getName() == "pthread_exit") {
-          CallInst::Create(ExitThread, "", I);
+        if (Function *Callee = CS.getCalledFunction()) {
+          if (Callee->getName() == "pthread_create") {
+            CallInst::Create(EnterThread, "", I);
+          }
+          if (Callee->getName() == "pthread_join") {
+            InsertAfter(CallInst::Create(ExitThread), I);
+          }
         }
-      }
-    }
-  }
-
-  // If <F> is a thread function, add EnterThread at its entry, and add
-  // ExitThread at its exits.
-  if (IDF.isThreadFunction(F)) {
-    CallInst::Create(EnterThread, "", F.begin()->getFirstInsertionPt());
-    for (Function::iterator B = F.begin(); B != F.end(); ++B) {
-      TerminatorInst *TI = B->getTerminator();
-      if (isa<ReturnInst>(TI)) {
-        CallInst::Create(ExitThread, "", B->getTerminator());
       }
     }
   }
