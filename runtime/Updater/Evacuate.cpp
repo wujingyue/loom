@@ -23,6 +23,7 @@ extern "C" void LoomAfterBlocking(unsigned CallSiteID);
 
 void LoomEnterProcess() {
   fprintf(stderr, "***** LoomEnterProcess *****\n");
+  pthread_atfork(NULL, NULL, LoomEnterForkedProcess);
   atexit(LoomExitProcess);
   pthread_rwlock_init(&LoomUpdateLock, NULL);
   memset((void *)LoomWait, 0, sizeof(LoomWait));

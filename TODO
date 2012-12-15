@@ -1,5 +1,1 @@
-Register LoomEnterForkedProcess using pthread_atfork
-
-Restore LoomEnterProcess and LoomExitProcess to global ctors and dtors
-
 Make the runtime pure C
