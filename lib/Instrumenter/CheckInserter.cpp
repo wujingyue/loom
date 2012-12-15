@@ -117,7 +117,7 @@ bool CheckInserter::doInitialization(Module &M) {
                                         GlobalValue::ExternalLinkage,
                                         "LoomEnterForkedProcess",
                                         &M);
-  ExitProcess = Function::Create(IniterType,
+  ExitProcess = Function::Create(InitFiniType,
                                  GlobalValue::ExternalLinkage,
                                  "LoomExitProcess",
                                  &M);
