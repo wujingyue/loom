@@ -28,4 +28,7 @@ aclocal -I $rcs_m4 -I `llvm-config --src-root`/autoconf/m4 || die "aclocal faile
 echo "Regenerating configure with autoconf"
 autoconf --warnings=all -o configure configure.ac || die "autoconf failed"
 
+echo "Regenerating configure header files with autoheader"
+autoheader configure.ac || die "autoheader failed"
+
 exit 0

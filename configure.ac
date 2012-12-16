@@ -25,6 +25,22 @@ AC_CONFIG_SRCDIR(["Makefile.common.in"])
 dnl Configure a common Makefile
 AC_CONFIG_FILES(Makefile.common)
 
+dnl Configure the header file
+AC_CONFIG_HEADERS([include/loom/config.h])
+AH_TOP([#ifndef __LOOM_CONFIG_H
+#define __LOOM_CONFIG_H])
+AH_BOTTOM([#endif])
+
+AC_ARG_WITH(ctrl-ip, AS_HELP_STRING([--with-ctrl-ip], [Controller's IP (default = localhost)]), , [with_ctrl_ip=localhost])
+AC_MSG_CHECKING([controler's ip])
+AC_MSG_RESULT([$with_ctrl_ip])
+AC_DEFINE_UNQUOTED(CONTROLLER_IP, "$with_ctrl_ip", [Controller's IP])
+
+AC_ARG_WITH(ctrl-port, AS_HELP_STRING([--with-ctrl-port], [Controller's port (default = 1229)]), , [with_ctrl_port=1229])
+AC_MSG_CHECKING([controler's port])
+AC_MSG_RESULT([$with_ctrl_port])
+AC_DEFINE_UNQUOTED(CONTROLLER_PORT, $with_ctrl_port, [Controller's port])
+
 dnl Configure project makefiles
 dnl List every Makefile that exists within your source tree
 AC_CONFIG_MAKEFILE(Makefile)

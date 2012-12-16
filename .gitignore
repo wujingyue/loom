@@ -9,3 +9,4 @@ Makefile.common
 config.log
 config.status
 fixes/
+include/loom/config.h
