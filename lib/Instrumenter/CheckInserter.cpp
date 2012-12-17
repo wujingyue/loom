@@ -69,8 +69,11 @@ void CheckInserter::InsertAfter(Instruction *I, Instruction *Pos) {
 }
 
 void CheckInserter::getAnalysisUsage(AnalysisUsage &AU) const {
+  // make sure IDAssigner is run before CheckInserter
+  AU.addRequired<IDAssigner>();
   AU.addRequired<IdentifyBackEdges>();
   AU.addRequired<IdentifyBlockingCS>();
+  AU.addPreserved<IDAssigner>();
 }
 
 bool CheckInserter::doInitialization(Module &M) {
