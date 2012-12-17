@@ -1,25 +1,23 @@
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "UpdateEngine.h"
-
-using namespace std;
 
 volatile int LoomWait[MaxNumBackEdges];
 atomic_t LoomCounter[MaxNumBlockingCS];
 pthread_rwlock_t LoomUpdateLock;
 struct Operation *LoomOperations[MaxNumInsts];
 
-extern "C" void LoomEnterProcess();
-extern "C" void LoomEnterForkedProcess();
-extern "C" void LoomExitProcess();
-extern "C" void LoomEnterThread();
-extern "C" void LoomExitThread();
-extern "C" void LoomCycleCheck(unsigned BackEdgeID);
-extern "C" void LoomBeforeBlocking(unsigned CallSiteID);
-extern "C" void LoomAfterBlocking(unsigned CallSiteID);
-extern "C" void LoomSlot(unsigned SlotID);
+void LoomEnterProcess();
+void LoomEnterForkedProcess();
+void LoomExitProcess();
+void LoomEnterThread();
+void LoomExitThread();
+void LoomCycleCheck(unsigned BackEdgeID);
+void LoomBeforeBlocking(unsigned CallSiteID);
+void LoomAfterBlocking(unsigned CallSiteID);
+void LoomSlot(unsigned SlotID);
 
 void LoomEnterProcess() {
   fprintf(stderr, "***** LoomEnterProcess *****\n");
@@ -57,7 +55,7 @@ void LoomExitProcess() {
     fprintf(stderr, "failed to stop the loom daemon\n");
   }
   for (unsigned i = 0; i < MaxNumInsts; ++i)
-    ClearOperations(LoomOperations[i]);
+    ClearOperations(&LoomOperations[i]);
   fprintf(stderr, "***** LoomExitProcess *****\n");
 }
 
@@ -88,6 +86,6 @@ void LoomAfterBlocking(unsigned CallSiteID) {
 }
 
 void LoomSlot(unsigned SlotID) {
-  for (Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next)
+  for (struct Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next)
     Op->CallBack(Op->Arg);
 }

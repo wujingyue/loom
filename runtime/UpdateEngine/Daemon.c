@@ -1,7 +1,7 @@
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <stdint.h>
 #include <strings.h>
@@ -12,7 +12,7 @@
 #include "loom/config.h"
 #include "UpdateEngine.h"
 
-static const int MaxBufferSize = 1024;
+#define MaxBufferSize (1024)
 
 static int CtrlSock = -1;
 
@@ -148,7 +148,7 @@ int ProcessMessage(char *Buffer, char *Response) {
   return 0;
 }
 
-void *RunDaemon(void *) {
+void *RunDaemon(void *Arg) {
   fprintf(stderr, "daemon is running...\n");
 
   // Block all signals. Applications such as MySQL and Apache have their own way
@@ -179,7 +179,7 @@ void *RunDaemon(void *) {
   }
 
   // unreachable
-  assert(false);
+  assert(0 && "unreachable");
 
   return NULL;
 }
@@ -209,19 +209,19 @@ void EvacuateAndUpdate(unsigned *UnsafeBackEdges, unsigned NumUnsafeBackEdges,
   int Unsafe[MaxNumBackEdges];
   memset(Unsafe, 0, sizeof(Unsafe));
   for (unsigned i = 0; i < NumUnsafeBackEdges; ++i)
-    Unsafe[UnsafeBackEdges[i]] = true;
+    Unsafe[UnsafeBackEdges[i]] = 1;
   for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
     if (!Unsafe[i])
-      LoomWait[i] = true;
+      LoomWait[i] = 1;
   }
 
   // Make sure nobody is running inside an unsafe call site.
-  while (true) {
+  while (1) {
     pthread_rwlock_wrlock(&LoomUpdateLock);
-    bool InBlockingCallSite = false;
+    int InBlockingCallSite = 0;
     for (unsigned i = 0; i < NumUnsafeCallSites; ++i) {
       if (LoomCounter[i] > 0) {
-        InBlockingCallSite = true;
+        InBlockingCallSite = 1;
         break;
       }
     }

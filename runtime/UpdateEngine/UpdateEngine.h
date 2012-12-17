@@ -6,9 +6,9 @@
 #include "Sync.h"
 #include "Operation.h"
 
-static const unsigned MaxNumBackEdges = 65536;
-static const unsigned MaxNumBlockingCS = 65536;
-static const unsigned MaxNumInsts = 2000000;
+#define MaxNumBackEdges (65536)
+#define MaxNumBlockingCS (65536)
+#define MaxNumInsts (2000000)
 
 // evacuation algorithm
 extern volatile int LoomWait[MaxNumBackEdges];
