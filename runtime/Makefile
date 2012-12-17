@@ -1,5 +1,5 @@
 LEVEL = ..
 
-DIRS = Updater
+DIRS = UpdateEngine
 
 include $(LEVEL)/Makefile.common

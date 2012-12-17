@@ -1,16 +1,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
-#include <set>
 
-#include "Updater.h"
+#include "UpdateEngine.h"
 
 using namespace std;
 
-volatile bool LoomWait[MaxNumBackEdges];
+volatile int LoomWait[MaxNumBackEdges];
 atomic_t LoomCounter[MaxNumBlockingCS];
 pthread_rwlock_t LoomUpdateLock;
+struct Operation *LoomOperations[MaxNumInsts];
 
 extern "C" void LoomEnterProcess();
 extern "C" void LoomEnterForkedProcess();
@@ -20,6 +19,7 @@ extern "C" void LoomExitThread();
 extern "C" void LoomCycleCheck(unsigned BackEdgeID);
 extern "C" void LoomBeforeBlocking(unsigned CallSiteID);
 extern "C" void LoomAfterBlocking(unsigned CallSiteID);
+extern "C" void LoomSlot(unsigned SlotID);
 
 void LoomEnterProcess() {
   fprintf(stderr, "***** LoomEnterProcess *****\n");
@@ -87,37 +87,7 @@ void LoomAfterBlocking(unsigned CallSiteID) {
   atomic_dec(&LoomCounter[CallSiteID]);
 }
 
-void EvacuateAndUpdate(const set<unsigned> &UnsafeBackEdges,
-                       const set<unsigned> &UnsafeCallSites) {
-  // Turn on wait flags for all safe back edges.
-  for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
-    if (!UnsafeBackEdges.count(i))
-      LoomWait[i] = true;
-  }
-
-  // Make sure nobody is running inside an unsafe call site.
-  while (true) {
-    pthread_rwlock_wrlock(&LoomUpdateLock);
-    bool InBlockingCallSite = false;
-    for (set<unsigned>::const_iterator I = UnsafeCallSites.begin();
-         I != UnsafeCallSites.end();
-         ++I) {
-      if (LoomCounter[*I] > 0) {
-        InBlockingCallSite = true;
-        break;
-      }
-    }
-    if (!InBlockingCallSite) {
-      break;
-    }
-    pthread_rwlock_unlock(&LoomUpdateLock);
-  }
-
-  // Update.
-
-  // Restore wait flags and counters.
-  memset((void *)LoomWait, 0, sizeof(LoomWait));
-
-  // Resume application threads.
-  pthread_rwlock_unlock(&LoomUpdateLock);
+void LoomSlot(unsigned SlotID) {
+  for (Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next)
+    Op->CallBack(Op->Arg);
 }

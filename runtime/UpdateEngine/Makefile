@@ -1,6 +1,6 @@
 LEVEL = ../..
 
-LIBRARYNAME = LoomUpdater
+LIBRARYNAME = LoomUpdateEngine
 
 BYTECODE_LIBRARY = 1
 
