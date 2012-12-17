@@ -42,19 +42,18 @@ if __name__ == '__main__':
     print 'Waiting for connections...'
     conn, addr = sock.accept()
     print 'Connected by', addr
-    rv = send_message(conn, 'get_name')
-    assert rv == 0
-    ret, buffer = recv_message(conn)
-    assert ret == 0
-    print 'Response:', buffer
     while True:
+        sys.stdout.write('\033[0;32mloom>\033[m ')
         cmd = sys.stdin.readline().strip()
         if cmd == 'quit' or cmd == 'exit':
+            print 'exit'
             break
         if send_message(conn, cmd) == -1:
+            print 'disconnected'
             break
         ret, buffer = recv_message(conn)
         if ret == -1:
+            print 'disconnected'
             break
         print 'Response:', buffer
     sock.close()
