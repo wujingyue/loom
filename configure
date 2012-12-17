@@ -1763,7 +1763,7 @@ ac_config_headers="$ac_config_headers include/loom/config.h"
 if test "${with_ctrl_ip+set}" = set; then :
   withval=$with_ctrl_ip;
 else
-  with_ctrl_ip=localhost
+  with_ctrl_ip=127.0.0.1
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking controler's ip" >&5

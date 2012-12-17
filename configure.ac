@@ -31,7 +31,7 @@ AH_TOP([#ifndef __LOOM_CONFIG_H
 #define __LOOM_CONFIG_H])
 AH_BOTTOM([#endif])
 
-AC_ARG_WITH(ctrl-ip, AS_HELP_STRING([--with-ctrl-ip], [Controller's IP (default = localhost)]), , [with_ctrl_ip=localhost])
+AC_ARG_WITH(ctrl-ip, AS_HELP_STRING([--with-ctrl-ip], [Controller's IP (default = localhost)]), , [with_ctrl_ip=127.0.0.1])
 AC_MSG_CHECKING([controler's ip])
 AC_MSG_RESULT([$with_ctrl_ip])
 AC_DEFINE_UNQUOTED(CONTROLLER_IP, "$with_ctrl_ip", [Controller's IP])
