@@ -4,18 +4,29 @@
 #include <pthread.h>
 
 #include "Sync.h"
-#include "Operation.h"
 
 #define MaxNumBackEdges (65536)
 #define MaxNumBlockingCS (65536)
 #define MaxNumInsts (2000000)
 
-// evacuation algorithm
+typedef void *ArgumentType;
+typedef void (*CallBackType)(ArgumentType);
+
+struct Operation {
+  CallBackType CallBack;
+  ArgumentType Arg;
+  struct Operation *Next;
+};
+
+// control application threads
 extern volatile int LoomWait[MaxNumBackEdges];
 extern atomic_t LoomCounter[MaxNumBlockingCS];
 extern pthread_rwlock_t LoomUpdateLock;
 // slot operations
 extern struct Operation *LoomOperations[MaxNumInsts];
+
+void ClearOperations(struct Operation **Op);
+void PrependOperation(struct Operation *Op, struct Operation **Pos);
 
 int StartDaemon();
 int StopDaemon();
