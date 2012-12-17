@@ -227,9 +227,10 @@ static int AddFilter(int FilterID, const char *FileName) {
         PrependOperation(&F.Ops[i], &LoomOperations[F.Ops[i].SlotID]);
       break;
     default:
-      fprintf(stderr, "unknown filter type\n");
-      return -1;
+      assert(0 && "should be already handled in ReadFilter");
   }
+
+  Filters[FilterID] = F;
 
   Resume();
 
