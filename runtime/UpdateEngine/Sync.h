@@ -11,4 +11,7 @@ inline int atomic_inc(atomic_t *v) {
   return __sync_add_and_fetch(v, 1);
 }
 
+void EnterCriticalRegion(void *Arg);
+void ExitCriticalRegion(void *Arg);
+
 #endif

@@ -14,7 +14,18 @@
 
 #define MaxBufferSize (1024)
 
+struct Filter {
+  enum Type {
+    Unknown = 0,
+    CriticalRegion,
+  };
+  enum Type FilterType;
+  struct Operation *Ops;
+  unsigned NumOps;
+};
+
 static int CtrlSock = -1;
+static struct Filter Filters[MaxNumFilters];
 
 static int BlockAllSignals() {
   sigset_t SigSet;
@@ -96,7 +107,7 @@ static int ReceiveFromController(char *M) {
     return -1;
   L = ntohl(L);
   if (L >= MaxBufferSize) {
-    fprintf(stderr, "Message too long: length = %u\n", L);
+    fprintf(stderr, "message too long: length = %u\n", L);
     return -1;
   }
   if (ReceiveExactly(CtrlSock, M, L) == -1)
@@ -105,50 +116,202 @@ static int ReceiveFromController(char *M) {
   return 0;
 }
 
-int ProcessMessage(char *Buffer, char *Response) {
+void InitFilters() {
+  for (unsigned i = 0; i < MaxNumFilters; ++i) {
+    Filters[i].FilterType = Unknown;
+  }
+}
+
+static int ReadFilter(unsigned FilterID,
+                      const char *FileName,
+                      struct Filter *F) {
+  FILE *FilterFile = fopen(FileName, "r");
+  if (!FilterFile) {
+    fprintf(stderr, "cannot open filter file %s\n", FileName);
+    return -1;
+  }
+  int NumericFilterType;
+  if (fscanf(FilterFile, "%d %u\n", &NumericFilterType, &F->NumOps) != 2) {
+    fprintf(stderr, "format error in filter file %s\n", FileName);
+    fclose(FilterFile);
+    return -1;
+  }
+  F->FilterType = NumericFilterType;
+  F->Ops = calloc(F->NumOps, sizeof(struct Operation));
+  for (unsigned i = 0; i < F->NumOps; ++i) {
+    int EntryOrExit;
+    unsigned SlotID;
+    if (fscanf(FilterFile, "%d %u\n", &EntryOrExit, &SlotID) != 2) {
+      fprintf(stderr, "format error in filter file %s\n", FileName);
+      fclose(FilterFile);
+      return -1;
+    }
+    switch (F->FilterType) {
+      case CriticalRegion:
+        {
+          struct Operation *Op = malloc(sizeof(struct Operation));
+          Op->CallBack = (EntryOrExit == 0 ?
+                          EnterCriticalRegion :
+                          ExitCriticalRegion);
+          Op->Arg = (void *)FilterID;
+          Op->SlotID = SlotID;
+        }
+        break;
+      default:
+        fprintf(stderr, "unknown filter type\n");
+        return -1;
+    }
+  }
+  fclose(FilterFile);
+  return 0;
+}
+
+static void Evacuate(const unsigned *UnsafeBackEdges,
+                     unsigned NumUnsafeBackEdges,
+                     const unsigned *UnsafeCallSites,
+                     unsigned NumUnsafeCallSites) {
+  // Turn on wait flags for all safe back edges.
+  int Unsafe[MaxNumBackEdges];
+  memset(Unsafe, 0, sizeof(Unsafe));
+  for (unsigned i = 0; i < NumUnsafeBackEdges; ++i)
+    Unsafe[UnsafeBackEdges[i]] = 1;
+  for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
+    if (!Unsafe[i])
+      LoomWait[i] = 1;
+  }
+
+  // Make sure nobody is running inside an unsafe call site.
+  while (1) {
+    pthread_rwlock_wrlock(&LoomUpdateLock);
+    int InBlockingCallSite = 0;
+    for (unsigned i = 0; i < NumUnsafeCallSites; ++i) {
+      if (LoomCounter[UnsafeCallSites[i]] > 0) {
+        InBlockingCallSite = 1;
+        break;
+      }
+    }
+    if (!InBlockingCallSite) {
+      break;
+    }
+    pthread_rwlock_unlock(&LoomUpdateLock);
+  }
+}
+
+static void Resume() {
+  // Restore wait flags and counters.
+  memset((void *)LoomWait, 0, sizeof(LoomWait));
+  // Resume application threads.
+  pthread_rwlock_unlock(&LoomUpdateLock);
+}
+
+static int AddFilter(int FilterID, const char *FileName) {
+  if (Filters[FilterID].FilterType != Unknown) {
+    fprintf(stderr, "filter %d already exists\n", FilterID);
+    return -1;
+  }
+
+  struct Filter F;
+  if (ReadFilter(FilterID, FileName, &F) == -1)
+    return -1;
+
+  unsigned UnsafeBackEdges[MaxNumBackEdges];
+  unsigned UnsafeCallSites[MaxNumBlockingCS];
+  // TODO: compute unsafe back edges and call sites from the filter
+
+  Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
+
+  switch (F.FilterType) {
+    case CriticalRegion:
+      pthread_mutex_init(&Mutexes[FilterID], NULL);
+      for (unsigned i = 0; i < F.NumOps; ++i)
+        PrependOperation(&F.Ops[i], &LoomOperations[F.Ops[i].SlotID]);
+      break;
+    default:
+      fprintf(stderr, "unknown filter type\n");
+      return -1;
+  }
+
+  Resume();
+
+  return 0;
+}
+
+static int DeleteFilter(int FilterID) {
+  struct Filter *F = &Filters[FilterID];
+  if (F->FilterType == Unknown) {
+    fprintf(stderr, "filter %d does not exist\n", FilterID);
+    return -1;
+  }
+
+  unsigned UnsafeBackEdges[MaxNumBackEdges];
+  unsigned UnsafeCallSites[MaxNumBlockingCS];
+  // TODO: compute unsafe back edges and call sites from the filter
+
+  Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
+
+  switch (F->FilterType) {
+    case CriticalRegion:
+      pthread_mutex_destroy(&Mutexes[FilterID]);
+      for (unsigned i = 0; i < F->NumOps; ++i)
+        UnlinkOperation(&F->Ops[i], &LoomOperations[F->Ops[i].SlotID]);
+      break;
+    default:
+      fprintf(stderr, "unknown filter type\n");
+      return -1;
+  }
+
+  free(F->Ops);
+  F->FilterType = Unknown;
+
+  Resume();
+
+  return 0;
+}
+
+static int ProcessMessage(char *Buffer, char *Response) {
   char *Cmd = strtok(Buffer, " ");
   if (Cmd == NULL) {
-    sprintf(Response, "[Error] no command specified");
+    sprintf(Response, "no command specified");
     return -1;
   }
 
   if (strcmp(Cmd, "add") == 0) {
     char *Token = strtok(NULL, " ");
     if (Token == NULL) {
-      sprintf(Response, "[Error] format error: add <fix ID> <file name>");
+      sprintf(Response, "format error: add <filter ID> <file name>");
       return -1;
     }
-    int FixID = atoi(Token);
+    int FilterID = atoi(Token);
     char *FileName = strtok(NULL, " ");
     if (FileName == NULL) {
-      sprintf(Response, "[Error] format error: add <fix ID> <file name>");
+      sprintf(Response, "format error: add <filter ID> <file name>");
       return -1;
     }
-    if (AddFix(FixID, FileName) == -1) {
-      sprintf(Response, "[Error] failed to add the fix");
+    if (AddFilter(FilterID, FileName) == -1) {
+      sprintf(Response, "failed to add the filter");
       return -1;
     }
     sprintf(Response, "OK");
   } else if (strcmp(Cmd, "del") == 0) {
     char *Token = strtok(NULL, " ");
     if (Token == NULL) {
-      sprintf(Response, "[Error] format error: del <fix ID>");
+      sprintf(Response, "format error: del <filter ID>");
       return -1;
     }
-    int FixID = atoi(Token);
-    if (DeleteFix(FixID) == -1) {
-      sprintf(Response, "[Error] failed to delete the fix");
+    int FilterID = atoi(Token);
+    if (DeleteFilter(FilterID) == -1) {
+      sprintf(Response, "failed to delete the filter");
       return -1;
     }
     sprintf(Response, "OK");
   } else {
-    sprintf(Response, "[Error] unknown command");
+    sprintf(Response, "unknown command");
     return -1;
   }
   return 0;
 }
 
-void *RunDaemon(void *Arg) {
+static void *RunDaemon(void *Arg) {
   fprintf(stderr, "daemon is running...\n");
 
   // Block all signals. Applications such as MySQL and Apache have their own way
@@ -191,7 +354,7 @@ int StartDaemon() {
     return -1;
   }
 
-  fprintf(stderr, "Daemon TID = %lu\n", DaemonTID);
+  fprintf(stderr, "daemon TID = %lu\n", DaemonTID);
   return 0;
 }
 
@@ -201,41 +364,4 @@ int StopDaemon() {
   // need to explicitly kill it.
   // TODO: issue a warning if the daemon already exits.
   return 0;
-}
-
-void EvacuateAndUpdate(unsigned *UnsafeBackEdges, unsigned NumUnsafeBackEdges,
-                       unsigned *UnsafeCallSites, unsigned NumUnsafeCallSites) {
-  // Turn on wait flags for all safe back edges.
-  int Unsafe[MaxNumBackEdges];
-  memset(Unsafe, 0, sizeof(Unsafe));
-  for (unsigned i = 0; i < NumUnsafeBackEdges; ++i)
-    Unsafe[UnsafeBackEdges[i]] = 1;
-  for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
-    if (!Unsafe[i])
-      LoomWait[i] = 1;
-  }
-
-  // Make sure nobody is running inside an unsafe call site.
-  while (1) {
-    pthread_rwlock_wrlock(&LoomUpdateLock);
-    int InBlockingCallSite = 0;
-    for (unsigned i = 0; i < NumUnsafeCallSites; ++i) {
-      if (LoomCounter[i] > 0) {
-        InBlockingCallSite = 1;
-        break;
-      }
-    }
-    if (!InBlockingCallSite) {
-      break;
-    }
-    pthread_rwlock_unlock(&LoomUpdateLock);
-  }
-
-  // Update.
-
-  // Restore wait flags and counters.
-  memset((void *)LoomWait, 0, sizeof(LoomWait));
-
-  // Resume application threads.
-  pthread_rwlock_unlock(&LoomUpdateLock);
 }

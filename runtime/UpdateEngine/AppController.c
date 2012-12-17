@@ -27,6 +27,7 @@ void LoomEnterProcess() {
   memset((void *)LoomWait, 0, sizeof(LoomWait));
   memset((void *)LoomCounter, 0, sizeof(LoomCounter));
   memset((void *)LoomOperations, 0, sizeof(LoomOperations));
+  InitFilters();
   if (StartDaemon() == -1) {
     fprintf(stderr, "failed to start the loom daemon. abort...\n");
     exit(1);
