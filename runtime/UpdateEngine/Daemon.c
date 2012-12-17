@@ -153,7 +153,7 @@ static int ReadFilter(unsigned FilterID,
     switch (F->FilterType) {
       case CriticalRegion:
         {
-          struct Operation *Op = malloc(sizeof(struct Operation));
+          struct Operation *Op = &F->Ops[i];
           Op->CallBack = (EntryOrExit == 0 ?
                           EnterCriticalRegion :
                           ExitCriticalRegion);
@@ -227,8 +227,9 @@ static int AddFilter(int FilterID, const char *FileName) {
   switch (F.FilterType) {
     case CriticalRegion:
       pthread_mutex_init(&Mutexes[FilterID], NULL);
-      for (unsigned i = 0; i < F.NumOps; ++i)
+      for (unsigned i = 0; i < F.NumOps; ++i) {
         PrependOperation(&F.Ops[i], &LoomOperations[F.Ops[i].SlotID]);
+      }
       break;
     default:
       assert(0 && "should be already handled in ReadFilter");

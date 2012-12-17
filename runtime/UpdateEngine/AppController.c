@@ -87,6 +87,7 @@ void LoomAfterBlocking(unsigned CallSiteID) {
 }
 
 void LoomSlot(unsigned SlotID) {
-  for (struct Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next)
+  for (struct Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
     Op->CallBack(Op->Arg);
+  }
 }
