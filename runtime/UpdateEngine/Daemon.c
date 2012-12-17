@@ -163,6 +163,7 @@ static int ReadFilter(unsigned FilterID,
         break;
       default:
         fprintf(stderr, "unknown filter type\n");
+        fclose(FilterFile);
         return -1;
     }
   }
