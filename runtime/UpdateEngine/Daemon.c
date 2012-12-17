@@ -60,7 +60,7 @@ static int CreateSocketToController() {
   ServerAddr.sin_addr.s_addr = inet_addr(CONTROLLER_IP);
   ServerAddr.sin_port = htons(CONTROLLER_PORT);
   if (connect(Sock, (struct sockaddr *)&ServerAddr, sizeof ServerAddr) == -1) {
-    perror("Failed to connect to the controller");
+    perror("failed to connect to the controller");
     return -1;
   }
   return Sock;

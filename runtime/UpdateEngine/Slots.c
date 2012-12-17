@@ -2,6 +2,8 @@
 
 #include "UpdateEngine.h"
 
+pthread_mutex_t Mutexes[MaxNumFilters];
+
 void ClearOperations(struct Operation **Op) {
   if (*Op != NULL) {
     ClearOperations(&(*Op)->Next);

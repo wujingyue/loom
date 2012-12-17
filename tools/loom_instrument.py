@@ -24,7 +24,7 @@ if __name__ == '__main__':
     rcs_utils.invoke(cmd)
 
     cmd = ' '.join(('clang++', instrumented_bc,
-                    rcs_utils.get_libdir() + '/libLoomUpdater.a',
+                    rcs_utils.get_libdir() + '/libLoomUpdateEngine.a',
                     '-o', instrumented_exe))
     linking_flags = rcs_utils.get_linking_flags(args.prog)
     cmd = ' '.join((cmd, ' '.join(linking_flags), '-pthread'))
