@@ -18,7 +18,7 @@ if __name__ == '__main__':
     cmd = rcs_utils.load_plugin(cmd, 'RCSCFG')
     cmd = rcs_utils.load_plugin(cmd, 'LoomAnalysis')
     cmd = rcs_utils.load_plugin(cmd, 'LoomInstrumenter')
-    cmd = ' '.join((cmd, '-insert-checks', '-clone-bbs'))
+    cmd = ' '.join((cmd, '-break-crit-invokes', '-insert-checks', '-clone-bbs'))
     cmd = ' '.join((cmd, '-o', instrumented_bc))
     cmd = ' '.join((cmd, '<', args.prog + '.bc'))
     rcs_utils.invoke(cmd)
