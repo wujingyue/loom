@@ -125,6 +125,11 @@ bool CheckInserter::doInitialization(Module &M) {
 
 // Check the assumptions we made.
 void CheckInserter::checkFeatures(Module &M) {
+  // Assume no function name starts with Loom.
+  for (Module::iterator F = M.begin(); F != M.end(); ++F) {
+    assert(!F->getName().startswith("Loom") &&
+           "Loom update engine seems already instrumented");
+  }
   // We do not support the situation where some important functions are called
   // via a function pointer, e.g. pthread_create, pthread_join and fork.
   for (Module::iterator F = M.begin(); F != M.end(); ++F) {
