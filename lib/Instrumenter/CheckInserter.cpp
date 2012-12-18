@@ -29,12 +29,8 @@ struct CheckInserter: public FunctionPass {
   static void InsertAfter(Instruction *I, Instruction *Pos);
 
   void checkFeatures(Module &M);
-  void checkFeatures(Function &F);
-
   void insertCycleChecks(Function &F);
   void insertBlockingChecks(Function &F);
-
-  bool addCtorOrDtor(Module &M, Function &F, const string &GlobalName);
   void instrumentThread(Function &F);
 
   // scalar types
@@ -56,13 +52,16 @@ static RegisterPass<CheckInserter> X("insert-checks",
                                      false,
                                      false);
 
-// TODO: Looks general to put into rcs.
 void CheckInserter::InsertAfter(Instruction *I, Instruction *Pos) {
-  if (TerminatorInst *TI = dyn_cast<TerminatorInst>(Pos)) {
-    for (size_t j = 0; j < TI->getNumSuccessors(); ++j) {
-      Instruction *I2 = (j == 0 ? I : I->clone());
-      I2->insertBefore(TI->getSuccessor(j)->getFirstInsertionPt());
-    }
+  if (InvokeInst *II = dyn_cast<InvokeInst>(Pos)) {
+    // FIXME: we should instrument the unwind BB as well, but it looks hard. The
+    // unwind BB has to begin with a landingpad. Also, we need to break the edge
+    // from the invoke to its unwind BB if the edge is critical. For now, we
+    // only instrument the normal destination.
+    // We assume the edge from the invoke to its normal destination is not
+    // critical, because we run BreakCriticalInvokes beforehand.
+    assert(II->getNormalDest()->getUniquePredecessor() != NULL);
+    I->insertBefore(II->getNormalDest()->getFirstInsertionPt());
   } else {
     I->insertAfter(Pos);
   }
@@ -147,56 +146,31 @@ void CheckInserter::checkFeatures(Module &M) {
   }
 }
 
-// Check the assumptions we made.
-void CheckInserter::checkFeatures(Function &F) {
-  // InvokeInst's unwind destination has only one predecessor.
-  for (Function::iterator B = F.begin(); B != F.end(); ++B) {
-    for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
-      if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
-        assert(II->getUnwindDest()->getUniquePredecessor() != NULL);
-      }
-    }
-  }
-}
-
 bool CheckInserter::runOnFunction(Function &F) {
-  checkFeatures(F);
-
   insertCycleChecks(F);
   insertBlockingChecks(F);
-
   instrumentThread(F);
-
   return true;
 }
 
 bool CheckInserter::doFinalization(Module &M) {
-  bool Result = false;
-  Result |= addCtorOrDtor(M, *EnterProcess, "llvm.global_ctors");
-  Result |= addCtorOrDtor(M, *ExitProcess, "llvm.global_dtors");
-  return Result;
-}
-
-bool CheckInserter::addCtorOrDtor(Module &M,
-                                  Function &F,
-                                  const string &GlobalName) {
   // We couldn't directly add an element to a constant array, because doing so
   // changes the type of the constant array.
 
-  // element type of llvm.global_ctors/llvm.global_dtors
+  // element type of llvm.global_ctors
   StructType *ST = StructType::get(IntType,
                                    PointerType::getUnqual(InitFiniType),
                                    NULL); // end with null
 
   // Move all existing elements of <GlobalName> to <Constants>.
   vector<Constant *> Constants;
-  if (GlobalVariable *GlobalCtors = M.getNamedGlobal(GlobalName)) {
+  if (GlobalVariable *GlobalCtors = M.getNamedGlobal("llvm.global_ctors")) {
     ConstantArray *CA = cast<ConstantArray>(GlobalCtors->getInitializer());
     for (unsigned j = 0; j < CA->getNumOperands(); ++j) {
       ConstantStruct *CS = cast<ConstantStruct>(CA->getOperand(j));
       assert(CS->getType() == ST);
       // Assume nobody is using the highest priority, so that <F> will be the
-      // first (last) to run as a ctor (dtor).
+      // first to run as a ctor.
       assert(!cast<ConstantInt>(CS->getOperand(0))->isMinValue(true));
       Constants.push_back(CS);
     }
@@ -205,16 +179,16 @@ bool CheckInserter::addCtorOrDtor(Module &M,
   // Add <F> with the highest priority.
   Constants.push_back(ConstantStruct::get(ST,
                                           ConstantInt::get(IntType, INT_MIN),
-                                          &F,
+                                          EnterProcess,
                                           NULL));
-  // Create the new <GlobalName> (llvm.global_ctors or llvm.global_dtors).
+  // Create the new llvm.global_ctors.
   ArrayType *ArrType = ArrayType::get(ST, Constants.size());
   new GlobalVariable(M,
                      ArrType,
                      true,
                      GlobalValue::AppendingLinkage,
                      ConstantArray::get(ArrType, Constants),
-                     GlobalName);
+                     "llvm.global_ctors");
 
   return true;
 }
