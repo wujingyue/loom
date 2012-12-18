@@ -3,6 +3,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CallSite.h"
 
 #include "rcs/IDAssigner.h"
 
@@ -56,8 +57,38 @@ bool BBCloner::runOnFunction(Function &F) {
     for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
       unsigned InsID = IDA.getInstructionID(I);
       if (InsID != IDAssigner::InvalidID) {
-        // in the original program
-        CallInst::Create(Slot, ConstantInt::get(IntType, InsID), "", I);
+        // <I> exists in the original program.
+        // We want to keep LoomBeforeBlocking and LoomAfterBlocking tightly
+        // around a blocking callsite, LoomEnterThread right before
+        // pthread_create, and LoomExitThread right after pthread_join.
+        // Threfore, be super careful about the insertion position of LoomSlot.
+        // e.g., after inserting LoomSlot to the following code snippet
+        //   call LoomBeforeBlocking
+        //   call read
+        //   call LoomAfterBlocking
+        //   ret void
+        // the code should look like:
+        //   call LoomSlot
+        //   call LoomBeforeBlocking
+        //   call read
+        //   call LoomAfterBlocking
+        //   call LoomSlot
+        //   ret void
+        BasicBlock::iterator InsertPos = I;
+        while (InsertPos != B->begin()) {
+          BasicBlock::iterator Prev = InsertPos; --Prev;
+          CallSite CS(Prev);
+          if (!CS)
+            break;
+          Function *Callee = CS.getCalledFunction();
+          if (!Callee)
+            break;
+          if (Callee->getName() != "LoomBeforeBlocking" &&
+              Callee->getName() != "LoomEnterThread")
+            break;
+          InsertPos = Prev;
+        }
+        CallInst::Create(Slot, ConstantInt::get(IntType, InsID), "", InsertPos);
       }
     }
   }
