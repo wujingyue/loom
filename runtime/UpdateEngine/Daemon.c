@@ -210,6 +210,7 @@ static void Resume() {
 }
 
 static int AddFilter(int FilterID, const char *FileName) {
+  assert(FilterID < MaxNumFilters);
   if (Filters[FilterID].FilterType != Unknown) {
     fprintf(stderr, "filter %d already exists\n", FilterID);
     return -1;
@@ -244,6 +245,7 @@ static int AddFilter(int FilterID, const char *FileName) {
 }
 
 static int DeleteFilter(int FilterID) {
+  assert(FilterID < MaxNumFilters);
   struct Filter *F = &Filters[FilterID];
   if (F->FilterType == Unknown) {
     fprintf(stderr, "filter %d does not exist\n", FilterID);

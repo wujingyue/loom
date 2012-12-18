@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,6 +88,7 @@ void LoomAfterBlocking(unsigned CallSiteID) {
 }
 
 void LoomSlot(unsigned SlotID) {
+  assert(SlotID < MaxNumInsts);
   for (struct Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
     Op->CallBack(Op->Arg);
   }

@@ -41,6 +41,12 @@ AC_MSG_CHECKING([controler's port])
 AC_MSG_RESULT([$with_ctrl_port])
 AC_DEFINE_UNQUOTED(CONTROLLER_PORT, $with_ctrl_port, [Controller's port])
 
+dnl TODO: make them configurable
+AC_DEFINE_UNQUOTED(MaxNumBackEdges, (65536), [Maximum number of back edges])
+AC_DEFINE_UNQUOTED(MaxNumBlockingCS, (65536), [Maximum number of blocking external callsites])
+AC_DEFINE_UNQUOTED(MaxNumInsts, (2000000), [Maximum number of instructions])
+AC_DEFINE_UNQUOTED(MaxNumFilters, (1024), [Maximum number of filters])
+
 dnl Configure project makefiles
 dnl List every Makefile that exists within your source tree
 AC_CONFIG_MAKEFILE(Makefile)

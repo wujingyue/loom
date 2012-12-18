@@ -7,6 +7,8 @@
 
 #include "rcs/IDAssigner.h"
 
+#include "loom/config.h"
+
 using namespace llvm;
 using namespace rcs;
 
@@ -67,6 +69,7 @@ bool BBCloner::runOnFunction(Function &F) {
         Insertable = true;
       unsigned InsID = IDA.getInstructionID(I);
       if (InsID != IDAssigner::InvalidID) {
+        assert(InsID < MaxNumInsts);
         // <I> exists in the original program.
         BasicBlock::iterator InsertPos;
         if (!Insertable) {

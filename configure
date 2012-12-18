@@ -1794,6 +1794,27 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+
+cat >>confdefs.h <<_ACEOF
+#define MaxNumBackEdges (65536)
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MaxNumBlockingCS (65536)
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MaxNumInsts (2000000)
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define MaxNumFilters (1024)
+_ACEOF
+
+
 ac_config_commands="$ac_config_commands Makefile"
 
 

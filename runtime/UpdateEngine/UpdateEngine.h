@@ -4,11 +4,7 @@
 #include <pthread.h>
 
 #include "Sync.h"
-
-#define MaxNumBackEdges (65536)
-#define MaxNumBlockingCS (65536)
-#define MaxNumInsts (2000000)
-#define MaxNumFilters (1024)
+#include "loom/config.h"
 
 typedef void *ArgumentType;
 typedef void (*CallBackType)(ArgumentType);

@@ -9,6 +9,18 @@
 /* Controller's port */
 #undef CONTROLLER_PORT
 
+/* Maximum number of back edges */
+#undef MaxNumBackEdges
+
+/* Maximum number of blocking external callsites */
+#undef MaxNumBlockingCS
+
+/* Maximum number of filters */
+#undef MaxNumFilters
+
+/* Maximum number of instructions */
+#undef MaxNumInsts
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 

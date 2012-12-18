@@ -8,6 +8,7 @@
 #include "rcs/IDAssigner.h"
 #include "rcs/IdentifyBackEdges.h"
 
+#include "loom/config.h"
 #include "loom/IdentifyBlockingCS.h"
 
 using namespace std;
@@ -198,6 +199,7 @@ void CheckInserter::insertCycleChecks(Function &F) {
       BasicBlock *B2 = TI->getSuccessor(j);
       unsigned BackEdgeID = IBE.getID(B1, B2);
       if (BackEdgeID != (unsigned)-1) {
+        assert(BackEdgeID < MaxNumBackEdges);
         BasicBlock *BackEdgeBlock = BasicBlock::Create(
             F.getContext(),
             "backedge_" + B1->getName() + "_" + B2->getName(),
@@ -252,6 +254,7 @@ void CheckInserter::insertBlockingChecks(Function &F) {
     for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
       unsigned CallSiteID = IBCS.getID(I);
       if (CallSiteID != (unsigned)-1) {
+        assert(CallSiteID < MaxNumBlockingCS);
         CallInst::Create(BeforeBlocking,
                          ConstantInt::get(IntType, CallSiteID),
                          "",
