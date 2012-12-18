@@ -41,7 +41,7 @@ struct CheckInserter: public FunctionPass {
   Function *CycleCheck;
   Function *BeforeBlocking, *AfterBlocking;
   Function *EnterThread, *ExitThread;
-  Function *EnterProcess, *ExitProcess;
+  Function *EnterProcess;
 };
 }
 
@@ -113,10 +113,6 @@ bool CheckInserter::doInitialization(Module &M) {
                                   GlobalValue::ExternalLinkage,
                                   "LoomEnterProcess",
                                   &M);
-  ExitProcess = Function::Create(InitFiniType,
-                                 GlobalValue::ExternalLinkage,
-                                 "LoomExitProcess",
-                                 &M);
 
   // Return true because we added new function declarations.
   return true;
