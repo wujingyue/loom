@@ -56,8 +56,9 @@ void LoomExitProcess() {
   if (StopDaemon() == -1) {
     fprintf(stderr, "failed to stop the loom daemon\n");
   }
+  ClearFilters();
   for (unsigned i = 0; i < MaxNumInsts; ++i)
-    ClearOperations(&LoomOperations[i]);
+    assert(LoomOperations[i] == NULL);
   fprintf(stderr, "***** LoomExitProcess *****\n");
 }
 

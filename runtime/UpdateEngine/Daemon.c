@@ -244,6 +244,14 @@ static int AddFilter(int FilterID, const char *FileName) {
   return 0;
 }
 
+static void EraseFilter(struct Filter *F) {
+  assert(F->FilterType != Unknown);
+  for (unsigned i = 0; i < F->NumOps; ++i)
+    UnlinkOperation(&F->Ops[i], &LoomOperations[F->Ops[i].SlotID]);
+  free(F->Ops);
+  F->FilterType = Unknown;
+}
+
 static int DeleteFilter(int FilterID) {
   assert(FilterID < MaxNumFilters);
   struct Filter *F = &Filters[FilterID];
@@ -261,20 +269,24 @@ static int DeleteFilter(int FilterID) {
   switch (F->FilterType) {
     case CriticalRegion:
       pthread_mutex_destroy(&Mutexes[FilterID]);
-      for (unsigned i = 0; i < F->NumOps; ++i)
-        UnlinkOperation(&F->Ops[i], &LoomOperations[F->Ops[i].SlotID]);
       break;
     default:
       fprintf(stderr, "unknown filter type\n");
       return -1;
   }
-
-  free(F->Ops);
-  F->FilterType = Unknown;
+  EraseFilter(F);
 
   Resume();
 
   return 0;
+}
+
+void ClearFilters() {
+  for (unsigned i = 0; i < MaxNumFilters; ++i) {
+    struct Filter *F = &Filters[i];
+    if (F->FilterType != Unknown)
+      EraseFilter(F);
+  }
 }
 
 static int ProcessMessage(char *Buffer, char *Response) {

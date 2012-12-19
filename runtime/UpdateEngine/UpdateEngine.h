@@ -20,17 +20,18 @@ struct Operation {
 extern volatile int LoomWait[MaxNumBackEdges];
 extern atomic_t LoomCounter[MaxNumBlockingCS];
 extern pthread_rwlock_t LoomUpdateLock;
-// slot operations
+// LoomOperations[i] points to the first operation in slot i. Other operations
+// are chained via the Next pointer in struct Operation.
 extern struct Operation *LoomOperations[MaxNumInsts];
 extern pthread_mutex_t Mutexes[MaxNumFilters];
 
 void PrependOperation(struct Operation *Op, struct Operation **Pos);
 int UnlinkOperation(struct Operation *Op, struct Operation **List);
-void ClearOperations(struct Operation **Op);
 
 int StartDaemon();
 int StopDaemon();
 
 void InitFilters();
+void ClearFilters();
 
 #endif
