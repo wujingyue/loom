@@ -3,3 +3,5 @@ Function cloning
 Loom controller
 
 Make limits configurable
+
+mysql_execute_command uses a much larger stack frame when instrumented with loom

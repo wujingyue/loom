@@ -22,26 +22,27 @@ char IdentifyBlockingCS::ID = 0;
 
 bool IdentifyBlockingCS::IsBlockingExternal(const Function &F) {
   string Name = F.getName();
-  return (Name == "connect" ||
-          Name == "open" ||
+  return (Name == "abort" ||
           Name == "accept" ||
+          Name == "connect" ||
           Name == "fork" ||
-          Name == "abort" ||
-          Name == "select" ||
-          Name == "fwrite" ||
           Name == "fprintf" ||
-          Name == "write" ||
-          Name == "printf" ||
-          Name == "puts" ||
           Name == "fputc" ||
           Name == "fputs" ||
-          Name == "sendto" ||
-          Name == "read" ||
-          Name == "recvfrom" ||
+          Name == "fwrite" ||
+          Name == "open" ||
+          Name == "printf" ||
           Name == "pthread_join" ||
           Name == "pthread_mutex_lock" ||
           Name == "pthread_cond_wait" ||
-          Name == "pthread_cond_timedwait");
+          Name == "pthread_cond_timedwait" ||
+          Name == "puts" ||
+          Name == "read" ||
+          Name == "recvfrom" ||
+          Name == "select" ||
+          Name == "sendto" ||
+          Name == "sigwait" ||
+          Name == "write");
 }
 
 void IdentifyBlockingCS::getAnalysisUsage(AnalysisUsage &AU) const {
