@@ -10,9 +10,8 @@
 #include <sys/prctl.h>
 
 #include "loom/config.h"
+#include "loom/Utils.h"
 #include "UpdateEngine.h"
-
-#define MaxBufferSize (1024)
 
 struct Filter {
   enum Type {
@@ -64,60 +63,6 @@ static int CreateSocketToController() {
     return -1;
   }
   return Sock;
-}
-
-static int SendExactly(int Sock, const void *Buffer, size_t L) {
-  size_t Sent = 0;
-  while (Sent < L) {
-    ssize_t R = send(Sock, (char *)Buffer + Sent, L - Sent, 0);
-    if (R == -1) {
-      perror("send");
-      return -1;
-    }
-    Sent += R;
-  }
-  return 0;
-}
-
-static int ReceiveExactly(int Sock, void *Buffer, size_t L) {
-  size_t Received = 0;
-  while (Received < L) {
-    ssize_t R = recv(Sock, (char *)Buffer + Received, L - Received, 0);
-    if (R == 0) {
-      fprintf(stderr, "remote socket closed\n");
-      return -1;
-    }
-    if (R == -1) {
-      perror("recv");
-      return -1;
-    }
-    Received += R;
-  }
-  return 0;
-}
-
-static int SendToController(const char *M) {
-  uint32_t L = htonl(strlen(M));
-  if (SendExactly(CtrlSock, &L, sizeof(uint32_t)) == -1)
-    return -1;
-  if (SendExactly(CtrlSock, M, strlen(M)) == -1)
-    perror("send");
-  return 0;
-}
-
-static int ReceiveFromController(char *M) {
-  uint32_t L;
-  if (ReceiveExactly(CtrlSock, &L, sizeof(int)) == -1)
-    return -1;
-  L = ntohl(L);
-  if (L >= MaxBufferSize) {
-    fprintf(stderr, "message too long: length = %u\n", L);
-    return -1;
-  }
-  if (ReceiveExactly(CtrlSock, M, L) == -1)
-    return -1;
-  M[L] = '\0';
-  return 0;
 }
 
 void InitFilters() {
@@ -349,16 +294,15 @@ static void *RunDaemon(void *Arg) {
   CtrlSock = CreateSocketToController();
   if (CtrlSock == -1)
     return (void *)-1;
-
   fprintf(stderr, "Loom daemon is connected to Loom controller\n");
   while (1) {
     char Buffer[MaxBufferSize];
-    if (ReceiveFromController(Buffer) == -1)
+    if (ReceiveMessage(CtrlSock, Buffer) == -1)
       return (void *)-1;
     char Response[MaxBufferSize] = {'\0'};
     ProcessMessage(Buffer, Response);
     assert(strlen(Response) > 0 && "empty response");
-    if (SendToController(Response) == -1)
+    if (SendMessage(CtrlSock, Response) == -1)
       return (void *)-1;
   }
 

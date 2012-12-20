@@ -16,6 +16,7 @@ if __name__ == '__main__':
     # TODO: loom_utils.load_all_plugins
     cmd = rcs_utils.load_plugin('opt', 'RCSID')
     cmd = rcs_utils.load_plugin(cmd, 'RCSCFG')
+    cmd = rcs_utils.load_plugin(cmd, 'libLoomutils')
     cmd = rcs_utils.load_plugin(cmd, 'LoomAnalysis')
     cmd = rcs_utils.load_plugin(cmd, 'LoomInstrumenter')
     cmd = ' '.join((cmd, '-break-crit-invokes', '-insert-checks', '-clone-bbs'))
