@@ -1,5 +1,7 @@
 LEVEL = ..
 
+DIRS = loom_ctl
+
 include $(LEVEL)/Makefile.common
 
 Scripts = loom_instrument.py loom_view_proc.py loom_simple_ctl.py
