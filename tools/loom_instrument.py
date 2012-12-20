@@ -16,7 +16,7 @@ if __name__ == '__main__':
     # TODO: loom_utils.load_all_plugins
     cmd = rcs_utils.load_plugin('opt', 'RCSID')
     cmd = rcs_utils.load_plugin(cmd, 'RCSCFG')
-    cmd = rcs_utils.load_plugin(cmd, 'libLoomutils')
+    cmd = rcs_utils.load_plugin(cmd, 'libLoomUtils')
     cmd = rcs_utils.load_plugin(cmd, 'LoomAnalysis')
     cmd = rcs_utils.load_plugin(cmd, 'LoomInstrumenter')
     cmd = ' '.join((cmd, '-break-crit-invokes', '-insert-checks', '-clone-bbs'))
@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     cmd = ' '.join(('clang++', instrumented_bc,
                     rcs_utils.get_libdir() + '/libLoomUpdateEngine.a',
+                    rcs_utils.get_libdir() + '/libLoomUtils.a',
                     '-o', instrumented_exe,
                     '-g', '-O3'))
     linking_flags = rcs_utils.get_linking_flags(args.prog)

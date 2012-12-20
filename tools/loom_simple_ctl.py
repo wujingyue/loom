@@ -40,10 +40,10 @@ if __name__ == '__main__':
     sock.bind((HOST, PORT))
     sock.listen(1)
 
-    print 'Waiting for connections...'
+    print 'waiting for connections...'
     conn, addr = sock.accept()
 
-    print 'Connected by', addr
+    print 'connected by', addr
     ret, buffer = recv_message(conn)
     if ret == -1 or buffer != 'iam loom_daemon':
         if ret == -1:

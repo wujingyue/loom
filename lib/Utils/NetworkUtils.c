@@ -22,7 +22,6 @@ int ReceiveExactly(int Sock, void *Buffer, size_t L) {
   while (Received < L) {
     ssize_t R = recv(Sock, (char *)Buffer + Received, L - Received, 0);
     if (R == 0) {
-      fprintf(stderr, "remote socket closed\n");
       return -1;
     }
     if (R == -1) {

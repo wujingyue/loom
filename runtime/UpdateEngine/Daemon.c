@@ -58,7 +58,7 @@ static int CreateSocketToController() {
   ServerAddr.sin_addr.s_addr = inet_addr(CONTROLLER_IP);
   ServerAddr.sin_port = htons(CONTROLLER_PORT);
   if (connect(Sock, (struct sockaddr *)&ServerAddr, sizeof ServerAddr) == -1) {
-    perror("failed to connect to the controller");
+    perror("failed to connect to the controller server");
     return -1;
   }
   return Sock;
@@ -80,7 +80,7 @@ static int ReadFilter(unsigned FilterID,
   }
   int NumericFilterType;
   if (fscanf(FilterFile, "%d %u\n", &NumericFilterType, &F->NumOps) != 2) {
-    fprintf(stderr, "format error in filter file %s\n", FileName);
+    fprintf(stderr, "wrong format in filter file %s\n", FileName);
     fclose(FilterFile);
     return -1;
   }
@@ -90,7 +90,7 @@ static int ReadFilter(unsigned FilterID,
     int EntryOrExit;
     unsigned SlotID;
     if (fscanf(FilterFile, "%d %u\n", &EntryOrExit, &SlotID) != 2) {
-      fprintf(stderr, "format error in filter file %s\n", FileName);
+      fprintf(stderr, "wrong format in filter file %s\n", FileName);
       fclose(FilterFile);
       return -1;
     }
@@ -243,24 +243,24 @@ static int ProcessMessage(char *Buffer, char *Response) {
   if (strcmp(Cmd, "add") == 0) {
     char *Token = strtok(NULL, " ");
     if (Token == NULL) {
-      sprintf(Response, "format error: add <filter ID> <file name>");
+      sprintf(Response, "wrong format. expect: add <filter ID> <file name>");
       return -1;
     }
     int FilterID = atoi(Token);
     char *FileName = strtok(NULL, " ");
     if (FileName == NULL) {
-      sprintf(Response, "format error: add <filter ID> <file name>");
+      sprintf(Response, "wrong format. expect: add <filter ID> <file name>");
       return -1;
     }
     if (AddFilter(FilterID, FileName) == -1) {
       sprintf(Response, "failed to add the filter");
       return -1;
     }
-    sprintf(Response, "OK");
+    sprintf(Response, "filter %d is successfully added", FilterID);
   } else if (strcmp(Cmd, "del") == 0) {
     char *Token = strtok(NULL, " ");
     if (Token == NULL) {
-      sprintf(Response, "format error: del <filter ID>");
+      sprintf(Response, "wrong format. expect: del <filter ID>");
       return -1;
     }
     int FilterID = atoi(Token);
@@ -268,7 +268,7 @@ static int ProcessMessage(char *Buffer, char *Response) {
       sprintf(Response, "failed to delete the filter");
       return -1;
     }
-    sprintf(Response, "OK");
+    sprintf(Response, "filter %d is successfully deleted", FilterID);
   } else {
     sprintf(Response, "unknown command");
     return -1;
