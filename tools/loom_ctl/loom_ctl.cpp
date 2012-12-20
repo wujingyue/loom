@@ -85,6 +85,10 @@ void HandleAddFilter(const string &FilterFileName) {
 }
 
 void HandleDeleteFilter(unsigned FilterID) {
+  if (FilterID >= MaxNumFilters) {
+    SendMessage(CtrlClientSock, "invalid ID");
+    return;
+  }
   if (FilterFileNames[FilterID] == "") {
     SendMessage(CtrlClientSock, "this ID does not exist");
     return;
@@ -244,7 +248,15 @@ int RunControllerServer() {
 
 int CommandAddFilter(int CtrlServerSock, const string &FilterFileName) {
   ostringstream OS;
-  OS << "add " << FilterFileName;
+  OS << "add ";
+  // Convert to full path whenever possible, so that the user can use relative
+  // path.
+  if (char *FullPath = realpath(FilterFileName.c_str(), NULL)) {
+    OS << FullPath;
+    free(FullPath);
+  } else {
+    OS << FilterFileName;
+  }
   return SendMessage(CtrlServerSock, OS.str().c_str());
 }
 
