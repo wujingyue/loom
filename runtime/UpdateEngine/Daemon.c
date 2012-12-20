@@ -23,7 +23,6 @@ struct Filter {
   unsigned NumOps;
 };
 
-static int CtrlSock = -1;
 static struct Filter Filters[MaxNumFilters];
 
 static int BlockAllSignals() {
@@ -291,10 +290,14 @@ static void *RunDaemon(void *Arg) {
   // Set the thread name, so that we can "ps c" to view it.
   SetThreadName();
 
-  CtrlSock = CreateSocketToController();
+  int CtrlSock = CreateSocketToController();
   if (CtrlSock == -1)
     return (void *)-1;
   fprintf(stderr, "Loom daemon is connected to Loom controller\n");
+
+  // Tell the controller "I am a daemon".
+  if (SendMessage(CtrlSock, "iam loom_daemon") == -1)
+    return (void *)-1;
   while (1) {
     char Buffer[MaxBufferSize];
     if (ReceiveMessage(CtrlSock, Buffer) == -1)
