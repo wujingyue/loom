@@ -39,9 +39,22 @@ if __name__ == '__main__':
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((HOST, PORT))
     sock.listen(1)
+
     print 'Waiting for connections...'
     conn, addr = sock.accept()
+
     print 'Connected by', addr
+    ret, buffer = recv_message(conn)
+    if ret == -1 or buffer != 'iam loom_daemon':
+        if ret == -1:
+            print 'disconnected'
+        else:
+            print 'not connected by a Loom daemon'
+            print 'disconnect'
+        conn.close()
+        sock.close()
+        sys.exit(0)
+
     while True:
         sys.stdout.write('\033[0;32mloom>\033[m ')
         cmd = sys.stdin.readline().strip()
@@ -55,5 +68,7 @@ if __name__ == '__main__':
         if ret == -1:
             print 'disconnected'
             break
-        print 'Response:', buffer
+        print 'response:', buffer
+
+    conn.close()
     sock.close()
