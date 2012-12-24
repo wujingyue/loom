@@ -22,7 +22,8 @@ char IdentifyBlockingCS::ID = 0;
 
 bool IdentifyBlockingCS::IsBlockingExternal(const Function &F) {
   string Name = F.getName();
-  return (Name == "abort" ||
+  return (Name == "_ZNSi6ignoreEv" ||
+          Name == "abort" ||
           Name == "accept" ||
           Name == "connect" ||
           Name == "fork" ||
@@ -39,6 +40,7 @@ bool IdentifyBlockingCS::IsBlockingExternal(const Function &F) {
           Name == "puts" ||
           Name == "read" ||
           Name == "recvfrom" ||
+          Name == "scanf" ||
           Name == "select" ||
           Name == "sendto" ||
           Name == "sigwait" ||
