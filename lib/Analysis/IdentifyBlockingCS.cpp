@@ -42,6 +42,7 @@ bool IdentifyBlockingCS::IsBlockingExternal(const Function &F) {
           Name == "recvfrom" ||
           Name == "scanf" ||
           Name == "select" ||
+          Name == "semop" ||
           Name == "sendto" ||
           Name == "sigwait" ||
           Name == "write");
