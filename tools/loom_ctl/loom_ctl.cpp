@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <signal.h>
 #include <arpa/inet.h>
 
 #include <cstdio>
@@ -197,14 +198,17 @@ void *HandleClient(void *Arg) {
 }
 
 int RunControllerServer() {
+  // Ignore SIGPIPE.
+  signal(SIGPIPE, SIG_IGN);
+
   int AcceptSock = socket(AF_INET, SOCK_STREAM, 0);
   if (AcceptSock == -1) {
     perror("socket");
     return -1;
   }
-  int OptionVal = 1;
+  int TrueVal = 1;
   if (setsockopt(AcceptSock, SOL_SOCKET,
-                 SO_REUSEADDR, &OptionVal, sizeof(int)) == -1) {
+                 SO_REUSEADDR, &TrueVal, sizeof(int)) == -1) {
     perror("setsockopt");
     return -1;
   }
