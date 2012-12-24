@@ -16,9 +16,8 @@
 struct Filter {
   enum Type {
     Unknown = 0,
-    CriticalRegion,
-  };
-  enum Type FilterType;
+    CriticalRegion
+  } FilterType;
   struct Operation *Ops;
   unsigned NumOps;
 };
@@ -47,12 +46,13 @@ static void SetThreadName() {
 }
 
 static int CreateSocketToController() {
-  int Sock = socket(AF_INET, SOCK_STREAM, 0);
+  struct sockaddr_in ServerAddr;
+  int Sock;
+  Sock = socket(AF_INET, SOCK_STREAM, 0);
   if (Sock == -1) {
     perror("socket");
     return -1;
   }
-  struct sockaddr_in ServerAddr;
   bzero(&ServerAddr, sizeof ServerAddr);
   ServerAddr.sin_family = AF_INET;
   ServerAddr.sin_addr.s_addr = inet_addr(CONTROLLER_IP);
@@ -65,7 +65,8 @@ static int CreateSocketToController() {
 }
 
 void InitFilters() {
-  for (unsigned i = 0; i < MaxNumFilters; ++i) {
+  unsigned i;
+  for (i = 0; i < MaxNumFilters; ++i) {
     Filters[i].FilterType = Unknown;
   }
 }
@@ -74,11 +75,12 @@ static int ReadFilter(unsigned FilterID,
                       const char *FileName,
                       struct Filter *F) {
   FILE *FilterFile = fopen(FileName, "r");
+  int NumericFilterType;
+  unsigned i;
   if (!FilterFile) {
     fprintf(stderr, "cannot open filter file %s\n", FileName);
     return -1;
   }
-  int NumericFilterType;
   if (fscanf(FilterFile, "%d %u\n", &NumericFilterType, &F->NumOps) != 2) {
     fprintf(stderr, "wrong format in filter file %s\n", FileName);
     fclose(FilterFile);
@@ -86,7 +88,7 @@ static int ReadFilter(unsigned FilterID,
   }
   F->FilterType = NumericFilterType;
   F->Ops = calloc(F->NumOps, sizeof(struct Operation));
-  for (unsigned i = 0; i < F->NumOps; ++i) {
+  for (i = 0; i < F->NumOps; ++i) {
     int EntryOrExit;
     unsigned SlotID;
     if (fscanf(FilterFile, "%d %u\n", &EntryOrExit, &SlotID) != 2) {
@@ -101,7 +103,7 @@ static int ReadFilter(unsigned FilterID,
           Op->CallBack = (EntryOrExit == 0 ?
                           EnterCriticalRegion :
                           ExitCriticalRegion);
-          Op->Arg = (void *)FilterID;
+          Op->Arg = (void *)(unsigned long)FilterID;
           Op->SlotID = SlotID;
         }
         break;
@@ -119,21 +121,23 @@ static void Evacuate(const unsigned *UnsafeBackEdges,
                      unsigned NumUnsafeBackEdges,
                      const unsigned *UnsafeCallSites,
                      unsigned NumUnsafeCallSites) {
-  // Turn on wait flags for all safe back edges.
+  unsigned i;
+  /* Turn on wait flags for all safe back edges. */
   int Unsafe[MaxNumBackEdges];
   memset(Unsafe, 0, sizeof(Unsafe));
-  for (unsigned i = 0; i < NumUnsafeBackEdges; ++i)
+  for (i = 0; i < NumUnsafeBackEdges; ++i)
     Unsafe[UnsafeBackEdges[i]] = 1;
-  for (unsigned i = 0; i < MaxNumBackEdges; ++i) {
+  for (i = 0; i < MaxNumBackEdges; ++i) {
     if (!Unsafe[i])
       LoomWait[i] = 1;
   }
 
-  // Make sure nobody is running inside an unsafe call site.
+  /* Make sure nobody is running inside an unsafe call site. */
   while (1) {
-    pthread_rwlock_wrlock(&LoomUpdateLock);
     int InBlockingCallSite = 0;
-    for (unsigned i = 0; i < NumUnsafeCallSites; ++i) {
+    unsigned i;
+    pthread_rwlock_wrlock(&LoomUpdateLock);
+    for (i = 0; i < NumUnsafeCallSites; ++i) {
       if (LoomCounter[UnsafeCallSites[i]] > 0) {
         InBlockingCallSite = 1;
         break;
@@ -147,33 +151,33 @@ static void Evacuate(const unsigned *UnsafeBackEdges,
 }
 
 static void Resume() {
-  // Restore wait flags and counters.
+  /* Restore wait flags and counters. */
   memset((void *)LoomWait, 0, sizeof(LoomWait));
-  // Resume application threads.
+  /* Resume application threads. */
   pthread_rwlock_unlock(&LoomUpdateLock);
 }
 
 static int AddFilter(int FilterID, const char *FileName) {
+  struct Filter F;
+  unsigned UnsafeBackEdges[MaxNumBackEdges];
+  unsigned UnsafeCallSites[MaxNumBlockingCS];
+  unsigned i;
   assert(FilterID < MaxNumFilters);
   if (Filters[FilterID].FilterType != Unknown) {
     fprintf(stderr, "filter %d already exists\n", FilterID);
     return -1;
   }
 
-  struct Filter F;
   if (ReadFilter(FilterID, FileName, &F) == -1)
     return -1;
 
-  unsigned UnsafeBackEdges[MaxNumBackEdges];
-  unsigned UnsafeCallSites[MaxNumBlockingCS];
-  // TODO: compute unsafe back edges and call sites from the filter
-
+  /* TODO: compute unsafe back edges and call sites from the filter */
   Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
 
   switch (F.FilterType) {
     case CriticalRegion:
       pthread_mutex_init(&Mutexes[FilterID], NULL);
-      for (unsigned i = 0; i < F.NumOps; ++i) {
+      for (i = 0; i < F.NumOps; ++i) {
         PrependOperation(&F.Ops[i], &LoomOperations[F.Ops[i].SlotID]);
       }
       break;
@@ -189,25 +193,27 @@ static int AddFilter(int FilterID, const char *FileName) {
 }
 
 static void EraseFilter(struct Filter *F) {
+  unsigned i;
   assert(F->FilterType != Unknown);
-  for (unsigned i = 0; i < F->NumOps; ++i)
+  for (i = 0; i < F->NumOps; ++i)
     UnlinkOperation(&F->Ops[i], &LoomOperations[F->Ops[i].SlotID]);
   free(F->Ops);
   F->FilterType = Unknown;
 }
 
 static int DeleteFilter(int FilterID) {
+  struct Filter *F;
+  unsigned UnsafeBackEdges[MaxNumBackEdges];
+  unsigned UnsafeCallSites[MaxNumBlockingCS];
+
   assert(FilterID < MaxNumFilters);
-  struct Filter *F = &Filters[FilterID];
+  F = &Filters[FilterID];
   if (F->FilterType == Unknown) {
     fprintf(stderr, "filter %d does not exist\n", FilterID);
     return -1;
   }
 
-  unsigned UnsafeBackEdges[MaxNumBackEdges];
-  unsigned UnsafeCallSites[MaxNumBlockingCS];
-  // TODO: compute unsafe back edges and call sites from the filter
-
+  /* TODO: compute unsafe back edges and call sites from the filter */
   Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
 
   switch (F->FilterType) {
@@ -226,7 +232,8 @@ static int DeleteFilter(int FilterID) {
 }
 
 void ClearFilters() {
-  for (unsigned i = 0; i < MaxNumFilters; ++i) {
+  unsigned i;
+  for (i = 0; i < MaxNumFilters; ++i) {
     struct Filter *F = &Filters[i];
     if (F->FilterType != Unknown)
       EraseFilter(F);
@@ -242,12 +249,14 @@ static int ProcessMessage(char *Buffer, char *Response) {
 
   if (strcmp(Cmd, "add") == 0) {
     char *Token = strtok(NULL, " ");
+    int FilterID;
+    char *FileName;
     if (Token == NULL) {
       sprintf(Response, "wrong format. expect: add <filter ID> <file name>");
       return -1;
     }
-    int FilterID = atoi(Token);
-    char *FileName = strtok(NULL, " ");
+    FilterID = atoi(Token);
+    FileName = strtok(NULL, " ");
     if (FileName == NULL) {
       sprintf(Response, "wrong format. expect: add <filter ID> <file name>");
       return -1;
@@ -259,11 +268,12 @@ static int ProcessMessage(char *Buffer, char *Response) {
     sprintf(Response, "filter %d is successfully added", FilterID);
   } else if (strcmp(Cmd, "del") == 0) {
     char *Token = strtok(NULL, " ");
+    int FilterID;
     if (Token == NULL) {
       sprintf(Response, "wrong format. expect: del <filter ID>");
       return -1;
     }
-    int FilterID = atoi(Token);
+    FilterID = atoi(Token);
     if (DeleteFilter(FilterID) == -1) {
       sprintf(Response, "failed to delete the filter");
       return -1;
@@ -277,39 +287,42 @@ static int ProcessMessage(char *Buffer, char *Response) {
 }
 
 static void *RunDaemon(void *Arg) {
+  int CtrlSock;
   fprintf(stderr, "daemon is running...\n");
 
-  // Block all signals. Applications such as MySQL and Apache have their own way
-  // of handling signals, which we do not want to interfere. For instance, MySQL
-  // has a special signal handling thread, which calls sigwait to wait for
-  // signals. If the Loom daemon stole the signal, the sigwait would never
-  // return, and the server would not be killed.
+  /*
+   * Block all signals. Applications such as MySQL and Apache have their own way
+   * of handling signals, which we do not want to interfere. For instance, MySQL
+   * has a special signal handling thread, which calls sigwait to wait for
+   * signals. If the Loom daemon stole the signal, the sigwait would never
+   * return, and the server would not be killed.
+   */
   if (BlockAllSignals() == -1)
     return (void *)-1;
 
-  // Set the thread name, so that we can "ps c" to view it.
+  /* Set the thread name, so that we can "ps c" to view it. */
   SetThreadName();
 
-  int CtrlSock = CreateSocketToController();
+  CtrlSock = CreateSocketToController();
   if (CtrlSock == -1)
     return (void *)-1;
   fprintf(stderr, "Loom daemon is connected to Loom controller\n");
 
-  // Tell the controller "I am a daemon".
+  /* Tell the controller "I am a daemon". */
   if (SendMessage(CtrlSock, "iam loom_daemon") == -1)
     return (void *)-1;
   while (1) {
     char Buffer[MaxBufferSize];
+    char Response[MaxBufferSize] = {'\0'};
     if (ReceiveMessage(CtrlSock, Buffer) == -1)
       return (void *)-1;
-    char Response[MaxBufferSize] = {'\0'};
     ProcessMessage(Buffer, Response);
     assert(strlen(Response) > 0 && "empty response");
     if (SendMessage(CtrlSock, Response) == -1)
       return (void *)-1;
   }
 
-  // unreachable
+  /* unreachable */
   assert(0 && "unreachable");
 
   return NULL;
@@ -328,8 +341,10 @@ int StartDaemon() {
 
 int StopDaemon() {
   fprintf(stderr, "StopDaemon\n");
-  // The daemon thread will be automatically killed by the parent process. No
-  // need to explicitly kill it.
-  // TODO: issue a warning if the daemon already exits.
+  /*
+   * The daemon thread will be automatically killed by the parent process. No
+   * need to explicitly kill it.
+   * TODO: issue a warning if the daemon already exits.
+   */
   return 0;
 }

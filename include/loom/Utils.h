@@ -1,4 +1,4 @@
-// This file will be included in C and C++ files.
+/* This file will be included in C and C++ files. */
 
 #ifndef __LOOM_UTILS_H
 #define __LOOM_UTILS_H

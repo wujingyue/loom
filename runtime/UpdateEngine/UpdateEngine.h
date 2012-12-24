@@ -16,12 +16,14 @@ struct Operation {
   struct Operation *Next;
 };
 
-// control application threads
+/* control application threads */
 extern volatile int LoomWait[MaxNumBackEdges];
 extern atomic_t LoomCounter[MaxNumBlockingCS];
 extern pthread_rwlock_t LoomUpdateLock;
-// LoomOperations[i] points to the first operation in slot i. Other operations
-// are chained via the Next pointer in struct Operation.
+/*
+ * LoomOperations[i] points to the first operation in slot i. Other operations
+ * are chained via the Next pointer in struct Operation.
+ */
 extern struct Operation *LoomOperations[MaxNumInsts];
 extern pthread_mutex_t Mutexes[MaxNumFilters];
 

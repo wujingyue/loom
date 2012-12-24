@@ -1,4 +1,4 @@
-// #define DEBUG_APP_CONTROLLER
+/* #define DEBUG_APP_CONTROLLER */
 
 #include <assert.h>
 #include <stdio.h>
@@ -42,25 +42,30 @@ void LoomEnterProcess() {
 
 void LoomEnterForkedProcess() {
   fprintf(stderr, "***** LoomEnterForkedProcess *****\n");
-  // Reinitialize LoomWait because the Loom daemon is not started yet for this
-  // process. Inherit other data structures from the parent process.
+  /*
+   * Reinitialize LoomWait because the Loom daemon is not started yet for this
+   * process. Inherit other data structures from the parent process.
+   */
   memset((void *)LoomWait, 0, sizeof(LoomWait));
-  // Start Loom daemon.
+  /* Start Loom daemon. */
   if (StartDaemon() == -1) {
     fprintf(stderr, "failed to start the loom daemon. abort...\n");
     exit(1);
   }
-  // We do not call LoomEnterThread here, because we inherited parent's
-  // LoomUpdateLock already.
+  /*
+   * We do not call LoomEnterThread here, because we inherited parent's
+   * LoomUpdateLock already.
+   */
 }
 
 void LoomExitProcess() {
+  unsigned i;
   LoomExitThread(1/* Forced */);
   if (StopDaemon() == -1) {
     fprintf(stderr, "failed to stop the loom daemon\n");
   }
   ClearFilters();
-  for (unsigned i = 0; i < MaxNumInsts; ++i)
+  for (i = 0; i < MaxNumInsts; ++i)
     assert(LoomOperations[i] == NULL);
   fprintf(stderr, "***** LoomExitProcess *****\n");
 }
@@ -110,8 +115,9 @@ void LoomAfterBlocking(unsigned CallSiteID) {
 }
 
 void LoomSlot(unsigned SlotID) {
+  struct Operation *Op;
   assert(SlotID < MaxNumInsts);
-  for (struct Operation *Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
+  for (Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
     Op->CallBack(Op->Arg);
   }
 }
