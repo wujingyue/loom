@@ -38,17 +38,16 @@ void LoomEnterProcess() {
 
 void LoomEnterForkedProcess() {
   fprintf(stderr, "***** LoomEnterForkedProcess *****\n");
-  // Reinitialize LoomUpdateLock and LoomWait because the Loom daemon is not
-  // started yet for this process. Inherit other data structures from the parent
-  // process.
-  pthread_rwlock_destroy(&LoomUpdateLock);
-  pthread_rwlock_init(&LoomUpdateLock, NULL);
+  // Reinitialize LoomWait because the Loom daemon is not started yet for this
+  // process. Inherit other data structures from the parent process.
   memset((void *)LoomWait, 0, sizeof(LoomWait));
+  // Start Loom daemon.
   if (StartDaemon() == -1) {
     fprintf(stderr, "failed to start the loom daemon. abort...\n");
     exit(1);
   }
-  LoomEnterThread();
+  // We do not call LoomEnterThread here, because we inherited parent's
+  // LoomUpdateLock already.
 }
 
 void LoomExitProcess() {
