@@ -107,7 +107,7 @@ bool CheckInserter::doInitialization(Module &M) {
                                  GlobalValue::ExternalLinkage,
                                  "LoomEnterThread",
                                  &M);
-  ExitThread = Function::Create(InitFiniType,
+  ExitThread = Function::Create(CheckType,
                                 GlobalValue::ExternalLinkage,
                                 "LoomExitThread",
                                 &M);
@@ -143,6 +143,9 @@ void CheckInserter::checkFeatures(Module &M) {
       }
     }
   }
+  // pthread_cancel provides another way of terminating a thread, which we have
+  // not supported yet.
+  assert(M.getFunction("pthread_cancel") == NULL);
 }
 
 bool CheckInserter::runOnFunction(Function &F) {
@@ -271,30 +274,13 @@ void CheckInserter::insertBlockingChecks(Function &F) {
 }
 
 void CheckInserter::instrumentThread(Function &F) {
-#if 0
-  // FIXME: we assume pthread_create and pthread_join always succeed for now.
-  for (Function::iterator B = F.begin(); B != F.end(); ++B) {
-    for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
-      CallSite CS(I);
-      if (CS) {
-        if (Function *Callee = CS.getCalledFunction()) {
-          if (Callee->getName() == "pthread_create") {
-            CallInst::Create(EnterThread, "", I);
-          }
-          if (Callee->getName() == "pthread_join") {
-            InsertAfter(CallInst::Create(ExitThread), I);
-          }
-        }
-      }
-    }
-  }
-#endif
   IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
   if (IDF.isThreadFunction(F)) {
     CallInst::Create(EnterThread, "", F.begin()->begin());
     for (Function::iterator B = F.begin(); B != F.end(); ++B) {
       if (ReturnInst *RI = dyn_cast<ReturnInst>(B->getTerminator())) {
-        CallInst::Create(ExitThread, "", RI);
+        // LoomExitThread(0/* not forced */)
+        CallInst::Create(ExitThread, ConstantInt::get(IntType, 0), "", RI);
       }
     }
   }
@@ -304,7 +290,8 @@ void CheckInserter::instrumentThread(Function &F) {
       if (CS) {
         if (Function *Callee = CS.getCalledFunction()) {
           if (Callee->getName() == "pthread_exit") {
-            CallInst::Create(ExitThread, "", I);
+            // LoomExitThread(1/* forced */)
+            CallInst::Create(ExitThread, ConstantInt::get(IntType, 1), "", I);
           }
         }
       }

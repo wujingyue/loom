@@ -18,7 +18,7 @@ void LoomEnterProcess();
 void LoomEnterForkedProcess();
 void LoomExitProcess();
 void LoomEnterThread();
-void LoomExitThread();
+void LoomExitThread(int Forced);
 void LoomCycleCheck(unsigned BackEdgeID);
 void LoomBeforeBlocking(unsigned CallSiteID);
 void LoomAfterBlocking(unsigned CallSiteID);
@@ -55,7 +55,7 @@ void LoomEnterForkedProcess() {
 }
 
 void LoomExitProcess() {
-  LoomExitThread();
+  LoomExitThread(1/* Forced */);
   if (StopDaemon() == -1) {
     fprintf(stderr, "failed to stop the loom daemon\n");
   }
@@ -75,9 +75,9 @@ void LoomEnterThread() {
   ++CallDepth;
 }
 
-void LoomExitThread() {
+void LoomExitThread(int Forced) {
   --CallDepth;
-  if (CallDepth == 0) {
+  if (CallDepth == 0 || Forced) {
 #ifdef DEBUG_APP_CONTROLLER
     fprintf(stderr, "[%d] LoomExitThread releases LoomUpdateLock\n", getpid());
 #endif
