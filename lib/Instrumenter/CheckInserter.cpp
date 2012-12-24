@@ -7,6 +7,7 @@
 
 #include "rcs/IDAssigner.h"
 #include "rcs/IdentifyBackEdges.h"
+#include "rcs/IdentifyThreadFuncs.h"
 
 #include "loom/config.h"
 #include "loom/IdentifyBlockingCS.h"
@@ -73,6 +74,7 @@ void CheckInserter::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<IDAssigner>();
   AU.addRequired<IdentifyBackEdges>();
   AU.addRequired<IdentifyBlockingCS>();
+  AU.addRequired<IdentifyThreadFuncs>();
   AU.addPreserved<IDAssigner>();
 }
 
@@ -269,6 +271,7 @@ void CheckInserter::insertBlockingChecks(Function &F) {
 }
 
 void CheckInserter::instrumentThread(Function &F) {
+#if 0
   // FIXME: we assume pthread_create and pthread_join always succeed for now.
   for (Function::iterator B = F.begin(); B != F.end(); ++B) {
     for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
@@ -280,6 +283,28 @@ void CheckInserter::instrumentThread(Function &F) {
           }
           if (Callee->getName() == "pthread_join") {
             InsertAfter(CallInst::Create(ExitThread), I);
+          }
+        }
+      }
+    }
+  }
+#endif
+  IdentifyThreadFuncs &IDF = getAnalysis<IdentifyThreadFuncs>();
+  if (IDF.isThreadFunction(F)) {
+    CallInst::Create(EnterThread, "", F.begin()->begin());
+    for (Function::iterator B = F.begin(); B != F.end(); ++B) {
+      if (ReturnInst *RI = dyn_cast<ReturnInst>(B->getTerminator())) {
+        CallInst::Create(ExitThread, "", RI);
+      }
+    }
+  }
+  for (Function::iterator B = F.begin(); B != F.end(); ++B) {
+    for (BasicBlock::iterator I = B->begin(); I != B->end(); ++I) {
+      CallSite CS(I);
+      if (CS) {
+        if (Function *Callee = CS.getCalledFunction()) {
+          if (Callee->getName() == "pthread_exit") {
+            CallInst::Create(ExitThread, "", I);
           }
         }
       }

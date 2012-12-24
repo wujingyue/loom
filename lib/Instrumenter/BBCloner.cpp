@@ -76,11 +76,10 @@ bool BBCloner::runOnFunction(Function &F) {
           InsertPos = FirstInsertPos;
         } else {
           // We want to keep LoomBeforeBlocking and LoomAfterBlocking tightly
-          // around a blocking callsite, LoomEnterThread right before
-          // pthread_create, and LoomExitThread right after pthread_join.
-          // Threfore, be super careful about the insertion position of
-          // LoomSlot.  e.g., after inserting LoomSlot to the following code
-          // snippet
+          // around a blocking callsite, LoomEnterThread right at the thread
+          // entry, and LoomExitThread right before the thread exit.  Threfore,
+          // be super careful about the insertion position of LoomSlot.  e.g.,
+          // after inserting LoomSlot to the following code snippet
           //   call LoomBeforeBlocking
           //   call read
           //   call LoomAfterBlocking
@@ -102,7 +101,7 @@ bool BBCloner::runOnFunction(Function &F) {
             if (!Callee)
               break;
             if (Callee->getName() != "LoomBeforeBlocking" &&
-                Callee->getName() != "LoomEnterThread")
+                Callee->getName() != "LoomExitThread")
               break;
             InsertPos = Prev;
           }

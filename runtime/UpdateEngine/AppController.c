@@ -1,7 +1,10 @@
+// #define DEBUG_APP_CONTROLLER
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "UpdateEngine.h"
 
@@ -9,6 +12,7 @@ volatile int LoomWait[MaxNumBackEdges];
 atomic_t LoomCounter[MaxNumBlockingCS];
 pthread_rwlock_t LoomUpdateLock;
 struct Operation *LoomOperations[MaxNumInsts];
+__thread int CallDepth = 0;
 
 void LoomEnterProcess();
 void LoomEnterForkedProcess();
@@ -62,11 +66,23 @@ void LoomExitProcess() {
 }
 
 void LoomEnterThread() {
-  pthread_rwlock_rdlock(&LoomUpdateLock);
+  if (CallDepth == 0) {
+#ifdef DEBUG_APP_CONTROLLER
+    fprintf(stderr, "[%d] LoomEnterThread acquires LoomUpdatelock\n", getpid());
+#endif
+    pthread_rwlock_rdlock(&LoomUpdateLock);
+  }
+  ++CallDepth;
 }
 
 void LoomExitThread() {
-  pthread_rwlock_unlock(&LoomUpdateLock);
+  --CallDepth;
+  if (CallDepth == 0) {
+#ifdef DEBUG_APP_CONTROLLER
+    fprintf(stderr, "[%d] LoomExitThread releases LoomUpdateLock\n", getpid());
+#endif
+    pthread_rwlock_unlock(&LoomUpdateLock);
+  }
 }
 
 void LoomCycleCheck(unsigned BackEdgeID) {
@@ -78,11 +94,17 @@ void LoomCycleCheck(unsigned BackEdgeID) {
 }
 
 void LoomBeforeBlocking(unsigned CallSiteID) {
+#ifdef DEBUG_APP_CONTROLLER
+  fprintf(stderr, "[%d] LoomBeforeBlocking(%u)\n", getpid(), CallSiteID);
+#endif
   atomic_inc(&LoomCounter[CallSiteID]);
   pthread_rwlock_unlock(&LoomUpdateLock);
 }
 
 void LoomAfterBlocking(unsigned CallSiteID) {
+#ifdef DEBUG_APP_CONTROLLER
+  fprintf(stderr, "[%d] LoomAfterBlocking(%u)\n", getpid(), CallSiteID);
+#endif
   pthread_rwlock_rdlock(&LoomUpdateLock);
   atomic_dec(&LoomCounter[CallSiteID]);
 }
