@@ -39,15 +39,18 @@ int HandleDaemon(int ClientSock) {
     pthread_mutex_lock(&Mutex);
     if (CtrlClientSock == -1) {
       errs() << "Loom controller client is not started yet\n";
-    } else {
-      // Forward the response to the controller client. The controller client
-      // may receive multiple responses from a multiprocess program. We could
-      // have better handle this situation by sending OK only when all processes
-      // have successfully installed the filter, and deleting the filter if any
-      // process fails.
-      SendMessage(CtrlClientSock, Response);
+      pthread_mutex_unlock(&Mutex);
+      continue;
     }
+    int Sock = CtrlClientSock;
     pthread_mutex_unlock(&Mutex);
+
+    // Forward the response to the controller client.
+    // TODO: The controller client may receive multiple responses from a
+    // multiprocess program. We could have better handle this situation by
+    // sending OK only when all processes have successfully installed the
+    // filter, and deleting the filter if any process fails.
+    SendMessage(Sock, Response);
   }
 
   // Remove <ClientSock> from <DaemonSocks>.
