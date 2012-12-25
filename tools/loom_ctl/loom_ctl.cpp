@@ -113,15 +113,20 @@ void HandleDeleteFilter(unsigned FilterID) {
 
 void HandleListFilters() {
   ostringstream OS;
-  bool First = true;
+  OS << "ID\tfile";
   for (size_t i = 0; i < FilterFileNames.size(); ++i) {
     if (FilterFileNames[i] != "") {
-      if (First)
-        First = false;
-      else
-        OS << "\n";
-      OS << i << "\t" << FilterFileNames[i];
+      OS << "\n" << i << "\t" << FilterFileNames[i];
     }
+  }
+  SendMessage(CtrlClientSock, OS.str().c_str());
+}
+
+void HandleListDaemons() {
+  ostringstream OS;
+  OS << "PID\tsocket";
+  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I) {
+    OS << "\n" << I->first << "\t" << I->second;
   }
   SendMessage(CtrlClientSock, OS.str().c_str());
 }
@@ -161,6 +166,8 @@ int HandleControllerClient(int ClientSock) {
       HandleDeleteFilter(FilterID);
     } else if (Op == "ls") {
       HandleListFilters();
+    } else if (Op == "ps") {
+      HandleListDaemons();
     } else {
       SendMessage(CtrlClientSock, "unknown command");
     }
@@ -284,6 +291,10 @@ int CommandListFilters(int CtrlServerSock) {
   return SendMessage(CtrlServerSock, "ls");
 }
 
+int CommandListDaemons(int CtrlServerSock) {
+  return SendMessage(CtrlServerSock, "ps");
+}
+
 int RunControllerClient() {
   int CtrlServerSock = socket(AF_INET, SOCK_STREAM, 0);
   if (CtrlServerSock == -1) {
@@ -307,6 +318,7 @@ int RunControllerClient() {
     return -1;
   }
 
+  // TODO: extra it to a function
   int Ret = 0;
   if (ControllerAction == "add") {
     if (Args.size() != 1) {
@@ -329,6 +341,13 @@ int RunControllerClient() {
       Ret = -1;
     } else {
       Ret = CommandListFilters(CtrlServerSock);
+    }
+  } else if (ControllerAction == "ps") {
+    if (Args.size() != 0) {
+      errs() << "wrong format\n";
+      Ret = -1;
+    } else {
+      Ret = CommandListDaemons(CtrlServerSock);
     }
   } else {
     assert(false);
@@ -354,7 +373,8 @@ int main(int argc, char *argv[]) {
       return 1;
   } else if (ControllerAction == "add" ||
              ControllerAction == "delete" ||
-             ControllerAction == "ls") {
+             ControllerAction == "ls" ||
+             ControllerAction == "ps") {
     if (RunControllerClient() == -1)
       return 1;
   } else {
