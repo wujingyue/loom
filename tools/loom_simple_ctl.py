@@ -4,9 +4,10 @@ import socket, sys, struct
 
 def print_usage():
     print 'Usage:'
-    print '\tadd <fix ID> <extension name>'
-    print '\tdel <fix ID>'
-    print '\tquit or exit to exit the controller'
+    print '  add <fix ID> <extension name>'
+    print '  del <fix ID>'
+    print '  ls'
+    print '  quit or exit to exit the controller'
 
 def send_message(conn, msg):
     buffer = struct.pack('!i', len(msg)) + msg
@@ -68,7 +69,7 @@ if __name__ == '__main__':
         if ret == -1:
             print 'disconnected'
             break
-        print 'response:', buffer
+        print buffer
 
     conn.close()
     sock.close()

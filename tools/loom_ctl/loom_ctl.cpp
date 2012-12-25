@@ -25,6 +25,7 @@ static cl::list<string> Args(cl::ConsumeAfter, cl::desc("<arguments>..."));
 static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
 static int CtrlClientSock = -1;
 static vector<int> DaemonSocks;
+
 // needn't be protected, because it is only used by HandleControllerClient.
 static vector<string> FilterFileNames(MaxNumFilters);
 

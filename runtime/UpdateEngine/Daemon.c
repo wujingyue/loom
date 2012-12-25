@@ -212,12 +212,12 @@ static void Resume() {
   pthread_rwlock_unlock(&LoomUpdateLock);
 }
 
-static int AddFilter(int FilterID, const char *FileName) {
+static int AddFilter(unsigned FilterID, const char *FileName) {
   struct Filter F;
   unsigned i;
   assert(FilterID < MaxNumFilters);
   if (Filters[FilterID].FilterType != Unknown) {
-    fprintf(stderr, "filter %d already exists\n", FilterID);
+    fprintf(stderr, "filter %u already exists\n", FilterID);
     return -1;
   }
 
@@ -263,12 +263,12 @@ static void EraseFilter(struct Filter *F) {
   free(F->UnsafeCallSites);
 }
 
-static int DeleteFilter(int FilterID) {
+static int DeleteFilter(unsigned FilterID) {
   struct Filter *F = &Filters[FilterID];
 
   assert(FilterID < MaxNumFilters);
   if (F->FilterType == Unknown) {
-    fprintf(stderr, "filter %d does not exist\n", FilterID);
+    fprintf(stderr, "filter %u does not exist\n", FilterID);
     return -1;
   }
 
@@ -293,6 +293,21 @@ static int DeleteFilter(int FilterID) {
   return 0;
 }
 
+static unsigned ListFilters(unsigned *FilterIDs, unsigned MaxLen) {
+  unsigned i;
+  unsigned Len = 0;
+  for (i = 0; i < MaxNumFilters; ++i) {
+    if (Filters[i].FilterType != Unknown) {
+      FilterIDs[Len] = i;
+      ++Len;
+      if (Len == MaxLen)
+        break;
+    }
+  }
+  assert(Len < MaxLen);
+  return Len;
+}
+
 void ClearFilters() {
   unsigned i;
   for (i = 0; i < MaxNumFilters; ++i) {
@@ -311,7 +326,7 @@ static int ProcessMessage(char *Buffer, char *Response) {
 
   if (strcmp(Cmd, "add") == 0) {
     char *Token = strtok(NULL, " ");
-    int FilterID;
+    unsigned FilterID;
     char *FileName;
     if (Token == NULL) {
       sprintf(Response, "wrong format. expect: add <filter ID> <file name>");
@@ -327,10 +342,10 @@ static int ProcessMessage(char *Buffer, char *Response) {
       sprintf(Response, "failed to add the filter");
       return -1;
     }
-    sprintf(Response, "filter %d is successfully added", FilterID);
+    sprintf(Response, "filter %u is successfully added", FilterID);
   } else if (strcmp(Cmd, "del") == 0) {
     char *Token = strtok(NULL, " ");
-    int FilterID;
+    unsigned FilterID;
     if (Token == NULL) {
       sprintf(Response, "wrong format. expect: del <filter ID>");
       return -1;
@@ -340,7 +355,15 @@ static int ProcessMessage(char *Buffer, char *Response) {
       sprintf(Response, "failed to delete the filter");
       return -1;
     }
-    sprintf(Response, "filter %d is successfully deleted", FilterID);
+    sprintf(Response, "filter %u is successfully deleted", FilterID);
+  } else if (strcmp(Cmd, "ls") == 0) {
+    unsigned FilterIDs[MaxNumFilters];
+    unsigned NumFilters = ListFilters(FilterIDs, MaxNumFilters);
+    unsigned i;
+    unsigned Printed = sprintf(Response, "filters:");
+    for (i = 0; i < NumFilters; ++i) {
+      Printed += sprintf(Response + Printed, " %u", FilterIDs[i]);
+    }
   } else {
     sprintf(Response, "unknown command");
     return -1;
