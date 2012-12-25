@@ -8,5 +8,6 @@ Makefile.common
 *.swp
 config.log
 config.status
+configure.out
 fixes/
 include/loom/config.h
