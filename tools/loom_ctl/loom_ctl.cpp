@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <sstream>
 #include <vector>
+#include <map>
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,19 +22,17 @@ static cl::opt<string> ControllerAction(cl::Positional,
                                         cl::Required);
 static cl::list<string> Args(cl::ConsumeAfter, cl::desc("<arguments>..."));
 
-// protect <CtrlClientSock> and <DaemonSocks>
+// protect <CtrlClientSock> and <Daemons>
 static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
 static int CtrlClientSock = -1;
-static vector<int> DaemonSocks;
+static map<pid_t, int> Daemons;
 
 // needn't be protected, because it is only used by HandleControllerClient.
 static vector<string> FilterFileNames(MaxNumFilters);
 
-int HandleDaemon(int ClientSock) {
+int HandleDaemon(int ClientSock, pid_t PID) {
   pthread_mutex_lock(&Mutex);
-  assert(find(DaemonSocks.begin(), DaemonSocks.end(), ClientSock) ==
-         DaemonSocks.end());
-  DaemonSocks.push_back(ClientSock);
+  Daemons[PID] = ClientSock;
   pthread_mutex_unlock(&Mutex);
 
   char Response[MaxBufferSize];
@@ -55,9 +54,14 @@ int HandleDaemon(int ClientSock) {
     SendMessage(Sock, Response);
   }
 
-  // Remove <ClientSock> from <DaemonSocks>.
+  // Remove <ClientSock> from <Daemons>.
   pthread_mutex_lock(&Mutex);
-  remove(DaemonSocks.begin(), DaemonSocks.end(), ClientSock);
+  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I) {
+    if (I->second == ClientSock) {
+      Daemons.erase(I);
+      break;
+    }
+  }
   pthread_mutex_unlock(&Mutex);
 
   return 0;
@@ -83,9 +87,8 @@ void HandleAddFilter(const string &FilterFileName) {
   ostringstream OS;
   OS << "add " << (Pos - FilterFileNames.begin()) << " " << FilterFileName;
   pthread_mutex_lock(&Mutex);
-  for (size_t i = 0; i < DaemonSocks.size(); ++i) {
-    SendMessage(DaemonSocks[i], OS.str().c_str());
-  }
+  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I)
+    SendMessage(I->second, OS.str().c_str());
   pthread_mutex_unlock(&Mutex);
 }
 
@@ -103,9 +106,8 @@ void HandleDeleteFilter(unsigned FilterID) {
   ostringstream OS;
   OS << "del " << FilterID;
   pthread_mutex_lock(&Mutex);
-  for (size_t i = 0; i < DaemonSocks.size(); ++i) {
-    SendMessage(DaemonSocks[i], OS.str().c_str());
-  }
+  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I)
+    SendMessage(I->second, OS.str().c_str());
   pthread_mutex_unlock(&Mutex);
 }
 
@@ -183,9 +185,13 @@ void *HandleClient(void *Arg) {
   }
 
   int Ret = 0;
-  if (strcmp(Buffer, "iam loom_daemon") == 0) {
+  if (strncmp(Buffer, "iam loom_daemon", strlen("iam loom_daemon")) == 0) {
     outs() << "which is a Loom daemon\n";
-    Ret = HandleDaemon(ClientSock);
+    pid_t PID;
+    if (sscanf(Buffer, "iam loom_daemon %d", &PID) != 1)
+      Ret = -1;
+    else
+      Ret = HandleDaemon(ClientSock, PID);
   } else if (strcmp(Buffer, "iam loom_ctl") == 0) {
     outs() << "which is a Loom controller client\n";
     Ret = HandleControllerClient(ClientSock);

@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     print 'connected by', addr
     ret, buffer = recv_message(conn)
-    if ret == -1 or buffer != 'iam loom_daemon':
+    if ret == -1 or not buffer.startswith('iam loom_daemon'):
         if ret == -1:
             print 'disconnected'
         else:

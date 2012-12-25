@@ -373,6 +373,7 @@ static int ProcessMessage(char *Buffer, char *Response) {
 
 static void *RunDaemon(void *Arg) {
   int CtrlSock;
+  char Buffer[MaxBufferSize];
   fprintf(stderr, "daemon is running...\n");
 
   /*
@@ -394,10 +395,10 @@ static void *RunDaemon(void *Arg) {
   fprintf(stderr, "Loom daemon is connected to Loom controller\n");
 
   /* Tell the controller "I am a daemon". */
-  if (SendMessage(CtrlSock, "iam loom_daemon") == -1)
+  sprintf(Buffer, "iam loom_daemon %d\n", getpid());
+  if (SendMessage(CtrlSock, Buffer) == -1)
     return (void *)-1;
   while (1) {
-    char Buffer[MaxBufferSize];
     char Response[MaxBufferSize] = {'\0'};
     if (ReceiveMessage(CtrlSock, Buffer) == -1)
       return (void *)-1;
