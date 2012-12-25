@@ -18,6 +18,9 @@
 /* Maximum number of filters */
 #undef MaxNumFilters
 
+/* Maximum number of functions */
+#undef MaxNumFuncs
+
 /* Maximum number of instructions */
 #undef MaxNumInsts
 

@@ -18,8 +18,18 @@ struct Filter {
     Unknown = 0,
     CriticalRegion
   } FilterType;
-  struct Operation *Ops;
+
   unsigned NumOps;
+  struct Operation *Ops;
+
+  unsigned NumFuncsToPatch;
+  unsigned *FuncsToPatch;
+
+  unsigned NumUnsafeBackEdges;
+  unsigned *UnsafeBackEdges;
+
+  unsigned NumUnsafeCallSites;
+  unsigned *UnsafeCallSites;
 };
 
 static struct Filter Filters[MaxNumFilters];
@@ -74,28 +84,36 @@ void InitFilters() {
 static int ReadFilter(unsigned FilterID,
                       const char *FileName,
                       struct Filter *F) {
-  FILE *FilterFile = fopen(FileName, "r");
+  FILE *FilterFile = NULL;
   int NumericFilterType;
   unsigned i;
+
+  F->FilterType = Unknown;
+  F->Ops = NULL;
+  F->FuncsToPatch = NULL;
+  F->UnsafeBackEdges = NULL;
+  F->UnsafeCallSites = NULL;
+
+  FilterFile = fopen(FileName, "r");
   if (!FilterFile) {
     fprintf(stderr, "cannot open filter file %s\n", FileName);
     return -1;
   }
-  if (fscanf(FilterFile, "%d %u\n", &NumericFilterType, &F->NumOps) != 2) {
-    fprintf(stderr, "wrong format in filter file %s\n", FileName);
-    fclose(FilterFile);
-    return -1;
-  }
+
+  if (fscanf(FilterFile, "%d", &NumericFilterType) != 1)
+    goto format_error;
   F->FilterType = NumericFilterType;
+
+  if (fscanf(FilterFile, "%u", &F->NumOps) != 1)
+    goto format_error;
   F->Ops = calloc(F->NumOps, sizeof(struct Operation));
+  // TODO: check the return value of calloc
+
   for (i = 0; i < F->NumOps; ++i) {
     int EntryOrExit;
     unsigned SlotID;
-    if (fscanf(FilterFile, "%d %u\n", &EntryOrExit, &SlotID) != 2) {
-      fprintf(stderr, "wrong format in filter file %s\n", FileName);
-      fclose(FilterFile);
-      return -1;
-    }
+    if (fscanf(FilterFile, "%d %u\n", &EntryOrExit, &SlotID) != 2)
+      goto format_error;
     switch (F->FilterType) {
       case CriticalRegion:
         {
@@ -104,17 +122,54 @@ static int ReadFilter(unsigned FilterID,
                           EnterCriticalRegion :
                           ExitCriticalRegion);
           Op->Arg = (void *)(unsigned long)FilterID;
+          // TODO: check the range of SlotID
           Op->SlotID = SlotID;
         }
         break;
       default:
-        fprintf(stderr, "unknown filter type\n");
-        fclose(FilterFile);
-        return -1;
+        goto format_error;
     }
   }
+
+  if (fscanf(FilterFile, "%u", &F->NumFuncsToPatch) != 1)
+    goto format_error;
+  F->FuncsToPatch = calloc(F->NumFuncsToPatch, sizeof(unsigned));
+  // TODO: check the return value of calloc
+
+  for (i = 0; i < F->NumFuncsToPatch; ++i) {
+    if (fscanf(FilterFile, "%u", &F->FuncsToPatch[i]) != 1)
+      goto format_error;
+  }
+
+  if (fscanf(FilterFile, "%u", &F->NumUnsafeBackEdges) != 1)
+    goto format_error;
+  F->UnsafeBackEdges = calloc(F->NumUnsafeBackEdges, sizeof(unsigned));
+  // TODO: check the return value of calloc
+  for (i = 0; i < F->NumUnsafeBackEdges; ++i) {
+    if (fscanf(FilterFile, "%u", &F->UnsafeBackEdges[i]) != 1)
+      goto format_error;
+  }
+
+  if (fscanf(FilterFile, "%u", &F->NumUnsafeCallSites) != 1)
+    goto format_error;
+  F->UnsafeCallSites = calloc(F->NumUnsafeCallSites, sizeof(unsigned));
+  // TODO: check the return value of calloc
+  for (i = 0; i < F->NumUnsafeCallSites; ++i) {
+    if (fscanf(FilterFile, "%u", &F->UnsafeCallSites[i]) != 1)
+      goto format_error;
+  }
+
   fclose(FilterFile);
   return 0;
+
+format_error:
+  fprintf(stderr, "wrong format in filter file %s\n", FileName);
+  if (F->Ops) free(F->Ops);
+  if (F->FuncsToPatch) free(F->FuncsToPatch);
+  if (F->UnsafeBackEdges) free(F->UnsafeBackEdges);
+  if (F->UnsafeCallSites) free(F->UnsafeCallSites);
+  fclose(FilterFile);
+  return -1;
 }
 
 static void Evacuate(const unsigned *UnsafeBackEdges,
@@ -159,8 +214,6 @@ static void Resume() {
 
 static int AddFilter(int FilterID, const char *FileName) {
   struct Filter F;
-  unsigned UnsafeBackEdges[MaxNumBackEdges];
-  unsigned UnsafeCallSites[MaxNumBlockingCS];
   unsigned i;
   assert(FilterID < MaxNumFilters);
   if (Filters[FilterID].FilterType != Unknown) {
@@ -171,8 +224,14 @@ static int AddFilter(int FilterID, const char *FileName) {
   if (ReadFilter(FilterID, FileName, &F) == -1)
     return -1;
 
-  /* TODO: compute unsafe back edges and call sites from the filter */
-  Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
+  Evacuate(F.UnsafeBackEdges, F.NumUnsafeBackEdges,
+           F.UnsafeCallSites, F.NumUnsafeCallSites);
+
+  // Switch the functions to be patched to the slow path.
+  for (i = 0; i < F.NumFuncsToPatch; ++i) {
+    assert(F.FuncsToPatch[i] < MaxNumFuncs);
+    LoomSwitches[F.FuncsToPatch[i]] = 1;
+  }
 
   switch (F.FilterType) {
     case CriticalRegion:
@@ -195,26 +254,29 @@ static int AddFilter(int FilterID, const char *FileName) {
 static void EraseFilter(struct Filter *F) {
   unsigned i;
   assert(F->FilterType != Unknown);
+  F->FilterType = Unknown;
   for (i = 0; i < F->NumOps; ++i)
     UnlinkOperation(&F->Ops[i], &LoomOperations[F->Ops[i].SlotID]);
   free(F->Ops);
-  F->FilterType = Unknown;
+  free(F->FuncsToPatch);
+  free(F->UnsafeBackEdges);
+  free(F->UnsafeCallSites);
 }
 
 static int DeleteFilter(int FilterID) {
-  struct Filter *F;
-  unsigned UnsafeBackEdges[MaxNumBackEdges];
-  unsigned UnsafeCallSites[MaxNumBlockingCS];
+  struct Filter *F = &Filters[FilterID];
 
   assert(FilterID < MaxNumFilters);
-  F = &Filters[FilterID];
   if (F->FilterType == Unknown) {
     fprintf(stderr, "filter %d does not exist\n", FilterID);
     return -1;
   }
 
-  /* TODO: compute unsafe back edges and call sites from the filter */
-  Evacuate(UnsafeBackEdges, 0, UnsafeCallSites, 0);
+  Evacuate(F->UnsafeBackEdges, F->NumUnsafeBackEdges,
+           F->UnsafeCallSites, F->NumUnsafeCallSites);
+
+  // TODO: We could switch functions back to the slow path if we kept track of
+  // how many filters are patching each function.
 
   switch (F->FilterType) {
     case CriticalRegion:

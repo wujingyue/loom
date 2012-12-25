@@ -1806,6 +1806,11 @@ _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
+#define MaxNumFuncs (65536)
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
 #define MaxNumInsts (2000000)
 _ACEOF
 

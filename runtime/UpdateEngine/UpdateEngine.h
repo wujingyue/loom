@@ -24,6 +24,7 @@ extern pthread_rwlock_t LoomUpdateLock;
  * LoomOperations[i] points to the first operation in slot i. Other operations
  * are chained via the Next pointer in struct Operation.
  */
+extern int LoomSwitches[MaxNumFuncs];
 extern struct Operation *LoomOperations[MaxNumInsts];
 extern pthread_mutex_t Mutexes[MaxNumFilters];
 
