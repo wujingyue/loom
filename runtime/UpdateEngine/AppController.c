@@ -11,7 +11,6 @@
 volatile int LoomWait[MaxNumBackEdges];
 atomic_t LoomCounter[MaxNumBlockingCS];
 pthread_rwlock_t LoomUpdateLock;
-struct Operation *LoomOperations[MaxNumInsts];
 __thread int CallDepth = 0;
 
 void LoomEnterProcess();
@@ -22,7 +21,6 @@ void LoomExitThread(int Forced);
 void LoomCycleCheck(unsigned BackEdgeID);
 void LoomBeforeBlocking(unsigned CallSiteID);
 void LoomAfterBlocking(unsigned CallSiteID);
-void LoomSlot(unsigned SlotID);
 
 void LoomEnterProcess() {
   fprintf(stderr, "***** LoomEnterProcess *****\n");
@@ -112,12 +110,4 @@ void LoomAfterBlocking(unsigned CallSiteID) {
 #endif
   pthread_rwlock_rdlock(&LoomUpdateLock);
   atomic_dec(&LoomCounter[CallSiteID]);
-}
-
-void LoomSlot(unsigned SlotID) {
-  struct Operation *Op;
-  assert(SlotID < MaxNumInsts);
-  for (Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
-    Op->CallBack(Op->Arg);
-  }
 }

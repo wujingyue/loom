@@ -1,9 +1,24 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "UpdateEngine.h"
 
+int LoomSwitches[MaxNumFuncs];
+struct Operation *LoomOperations[MaxNumInsts];
 pthread_mutex_t Mutexes[MaxNumFilters];
+
+void LoomSlot(unsigned SlotID) {
+  struct Operation *Op;
+  assert(SlotID < MaxNumInsts);
+  for (Op = LoomOperations[SlotID]; Op; Op = Op->Next) {
+    Op->CallBack(Op->Arg);
+  }
+}
+
+int LoomSwitch(int FuncID) {
+  return LoomSwitches[FuncID];
+}
 
 void PrependOperation(struct Operation *Op, struct Operation **Pos) {
   Op->Next = *Pos;
