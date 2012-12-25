@@ -1,0 +1,24 @@
+// This file describes the format of a filter file.
+
+<filter type>
+
+<# of operations>
+<start/end> <slot ID>
+<start/end> <slot ID>
+...
+<start/end> <slot ID>
+
+<# of functions to be patched>
+<function ID 1>
+<functoin ID 2>
+...
+
+<# of unsafe backedges>
+<backedge ID 1>
+<backedge ID 2>
+...
+
+<# of unsafe callsites>
+<callsite ID 1>
+<callsite ID 2>
+...
