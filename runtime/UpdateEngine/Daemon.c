@@ -33,6 +33,8 @@ struct Filter {
 };
 
 static struct Filter Filters[MaxNumFilters];
+// StopDaemon also uses it.
+static int CtrlSock = -1;
 
 static int BlockAllSignals() {
   sigset_t SigSet;
@@ -372,7 +374,6 @@ static int ProcessMessage(char *Buffer, char *Response) {
 }
 
 static void *RunDaemon(void *Arg) {
-  int CtrlSock;
   char Buffer[MaxBufferSize];
   fprintf(stderr, "daemon is running...\n");
 
@@ -420,8 +421,6 @@ int StartDaemon() {
     perror("pthread_create");
     return -1;
   }
-
-  fprintf(stderr, "daemon TID = %lu\n", DaemonTID);
   return 0;
 }
 
@@ -432,5 +431,9 @@ int StopDaemon() {
    * need to explicitly kill it.
    * TODO: issue a warning if the daemon already exits.
    */
+  if (CtrlSock != -1) {
+    close(CtrlSock);
+    CtrlSock = -1;
+  }
   return 0;
 }
