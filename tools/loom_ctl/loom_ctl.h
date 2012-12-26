@@ -6,8 +6,13 @@
 using namespace llvm;
 
 namespace loom {
+
+enum CtlAction {
+  server, add, del, ls, ps
+};
+
 int RunControllerServer();
-int RunControllerClient(const cl::opt<std::string> &ControllerAction,
+int RunControllerClient(CtlAction ControllerAction,
                         const cl::list<std::string> &Args);
 }
 

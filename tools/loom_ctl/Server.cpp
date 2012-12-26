@@ -206,17 +206,17 @@ static void *HandleClient(void *Arg) {
 
   int Ret = 0;
   if (strncmp(Buffer, "iam loom_daemon", strlen("iam loom_daemon")) == 0) {
-    outs() << "which is a Loom daemon\n";
+    outs() << "conntected by a Loom daemon\n";
     pid_t PID;
     if (sscanf(Buffer, "iam loom_daemon %d", &PID) != 1)
       Ret = -1;
     else
       Ret = HandleDaemon(ClientSock, PID);
   } else if (strcmp(Buffer, "iam loom_ctl") == 0) {
-    outs() << "which is a Loom controller client\n";
+    outs() << "connected by a Loom controller client\n";
     Ret = HandleControllerClient(ClientSock);
   } else {
-    outs() << "which is an unknown client. ";
+    outs() << "connected by an unknown client. ";
     outs() << "close the connection immediately\n";
   }
 
@@ -268,8 +268,6 @@ int loom::RunControllerServer() {
       return -1;
     }
 
-    outs() << "connected by " << inet_ntoa(ClientAddr.sin_addr) << ":" <<
-        ntohs(ClientAddr.sin_port) << ", ";
     pthread_t child;
     if (pthread_create(&child, NULL, HandleClient, (void *)ClientSock) != 0) {
       perror("pthread_create");

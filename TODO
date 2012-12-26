@@ -1,7 +1,5 @@
 Add LoomCycleCheck to recursive function call entry
 
-Help info in Loom controller
-
 Loom controller client shouldn't exit after receiving the first message
 
 Make DEBUG_APP_CONTROLLER configurable

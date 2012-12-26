@@ -18,25 +18,28 @@ using namespace std;
 using namespace llvm;
 using namespace loom;
 
-// TODO: find a way to display more description on action
-static cl::opt<string> ControllerAction(cl::Positional,
-                                        cl::desc("<action>"),
-                                        cl::Required);
-static cl::list<string> Args(cl::ConsumeAfter, cl::desc("<arguments>..."));
+static cl::opt<CtlAction> ControllerAction(
+    cl::desc("Choose action:"),
+    cl::values(
+        clEnumVal(server, "Run the Loom controller server"),
+        clEnumVal(add, "Add an execution filter: -add <file>"),
+        clEnumVal(del, "Delete an execution filter: -del <filter ID>"),
+        clEnumVal(ls, "List all filters or filters on a process: -ls [PID]"),
+        clEnumVal(ps, "List all daemon processes: -ps"),
+        clEnumValEnd),
+    cl::init(server));
+static cl::list<string> Args(cl::Positional, cl::desc("<arguments>..."));
 
 int main(int argc, char *argv[]) {
   cl::ParseCommandLineOptions(argc, argv, "Loom controller");
-  if (ControllerAction == "server") {
+
+  if (ControllerAction == server) {
     if (RunControllerServer() == -1)
       return 1;
-  } else if (ControllerAction == "add" ||
-             ControllerAction == "delete" ||
-             ControllerAction == "ls" ||
-             ControllerAction == "ps") {
-    if (RunControllerClient(ControllerAction, Args) == -1)
-      return 1;
-  } else {
-    errs() << "Not implemented yet\n";
+   return 0;
   }
+
+  if (RunControllerClient(ControllerAction, Args) == -1)
+    return 1;
   return 0;
 }
