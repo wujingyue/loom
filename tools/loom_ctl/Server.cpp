@@ -51,7 +51,7 @@ static int HandleDaemon(int ClientSock, pid_t PID) {
   }
 
   // Remove <ClientSock> from <Daemons>.
-  errs() << "Socket " << ClientSock << " is not available any more\n";
+  outs() << "Loom daemon for process " << PID << " exits.\n";
   pthread_mutex_lock(&Mutex);
   for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I) {
     if (I->second == ClientSock) {
@@ -64,48 +64,73 @@ static int HandleDaemon(int ClientSock, pid_t PID) {
   return 0;
 }
 
-static void HandleAddFilter(const string &FilterFileName) {
-  if (find(FilterFileNames.begin(), FilterFileNames.end(), FilterFileName) !=
-      FilterFileNames.end()) {
-    SendMessage(CtrlClientSock, "this filter is already installed");
-    return;
-  }
-
-  // find the first unused ID
+static unsigned getFilterID(const string &FilterFileName) {
+  // Reuse the filter ID if this filter is already installed.
   vector<string>::iterator Pos = find(FilterFileNames.begin(),
                                       FilterFileNames.end(),
-                                      "");
+                                      FilterFileName);
+  if (Pos != FilterFileNames.end())
+    return Pos - FilterFileNames.begin();
+
+  // Find the first unused ID.
+  Pos = find(FilterFileNames.begin(), FilterFileNames.end(), "");
   if (Pos == FilterFileNames.end()) {
     SendMessage(CtrlClientSock, "too many filters");
-    return;
+    return -1;
   }
   *Pos = FilterFileName;
-
-  ostringstream OS;
-  OS << "add " << (Pos - FilterFileNames.begin()) << " " << FilterFileName;
-  pthread_mutex_lock(&Mutex);
-  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I)
-    SendMessage(I->second, OS.str().c_str());
-  pthread_mutex_unlock(&Mutex);
+  return Pos - FilterFileNames.begin();
 }
 
-static void HandleDeleteFilter(unsigned FilterID) {
+static void HandleAddFilter(pid_t PID, const string &FilterFileName) {
+  unsigned FilterID = getFilterID(FilterFileName);
+  if (FilterID == (unsigned)-1)
+    return;
+
+  pthread_mutex_lock(&Mutex);
+  if (!Daemons.count(PID)) {
+    pthread_mutex_unlock(&Mutex);
+    SendMessage(CtrlClientSock, "no such process");
+    return;
+  }
+  int DaemonSock = Daemons[PID];
+  pthread_mutex_unlock(&Mutex);
+
+  ostringstream OS;
+  OS << "add " << FilterID << " " << FilterFileName;
+  if (SendMessage(DaemonSock, OS.str().c_str()) == -1)
+    SendMessage(CtrlClientSock, "failed to communicate with this process");
+  // otherwise, expect the daemon to send the response back
+}
+
+static void HandleDeleteFilter(pid_t PID, unsigned FilterID) {
   if (FilterID >= MaxNumFilters) {
     SendMessage(CtrlClientSock, "invalid ID");
     return;
   }
   if (FilterFileNames[FilterID] == "") {
-    SendMessage(CtrlClientSock, "this ID does not exist");
+    SendMessage(CtrlClientSock, "no such filter ID");
     return;
   }
-  FilterFileNames[FilterID] = "";
+  // TODO: a filter may still be used after the controller deletes it from one
+  // process but not all. For simplicity, we never reclaim a filter ID. This
+  // could be improved by keeping track of how many processes are using a
+  // filter.
+
+  pthread_mutex_lock(&Mutex);
+  if (!Daemons.count(PID)) {
+    pthread_mutex_unlock(&Mutex);
+    SendMessage(CtrlClientSock, "no such process");
+    return;
+  }
+  int DaemonSock = Daemons[PID];
+  pthread_mutex_unlock(&Mutex);
 
   ostringstream OS;
   OS << "del " << FilterID;
-  pthread_mutex_lock(&Mutex);
-  for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I)
-    SendMessage(I->second, OS.str().c_str());
-  pthread_mutex_unlock(&Mutex);
+  if (SendMessage(DaemonSock, OS.str().c_str()) == -1)
+    SendMessage(CtrlClientSock, "failed to communicate with this process");
+  // otherwise, expect the daemon to send the response back
 }
 
 static void HandleListFilters(pid_t PID = -1) {
@@ -160,19 +185,21 @@ static int HandleControllerClient(int ClientSock) {
       continue;
     }
     if (Op == "add") {
+      pid_t PID;
       string FilterFileName;
-      if (!(IS >> FilterFileName)) {
+      if (!(IS >> PID >> FilterFileName)) {
         SendMessage(CtrlClientSock, "wrong format");
         continue;
       }
-      HandleAddFilter(FilterFileName);
+      HandleAddFilter(PID, FilterFileName);
     } else if (Op == "del") {
+      pid_t PID;
       unsigned FilterID;
-      if (!(IS >> FilterID)) {
+      if (!(IS >> PID >> FilterID)) {
         SendMessage(CtrlClientSock, "wrong format");
         continue;
       }
-      HandleDeleteFilter(FilterID);
+      HandleDeleteFilter(PID, FilterID);
     } else if (Op == "ls") {
       unsigned PID;
       if (!(IS >> PID))
@@ -186,6 +213,7 @@ static int HandleControllerClient(int ClientSock) {
     }
   }
 
+  outs() << "Loom controller client exits.\n";
   // Reset <CtrlClientSock> to allow another controller.
   pthread_mutex_lock(&Mutex);
   CtrlClientSock = -1;

@@ -18,9 +18,11 @@ using namespace std;
 using namespace llvm;
 using namespace loom;
 
-static int CommandAddFilter(int CtrlServerSock, const string &FilterFileName) {
+static int CommandAddFilter(int CtrlServerSock,
+                            pid_t PID,
+                            const string &FilterFileName) {
   ostringstream OS;
-  OS << "add ";
+  OS << "add " << PID << " ";
   // Convert to full path whenever possible, so that the user can use relative
   // path.
   if (char *FullPath = realpath(FilterFileName.c_str(), NULL)) {
@@ -32,9 +34,11 @@ static int CommandAddFilter(int CtrlServerSock, const string &FilterFileName) {
   return SendMessage(CtrlServerSock, OS.str().c_str());
 }
 
-static int CommandDeleteFilter(int CtrlServerSock, unsigned FilterID) {
+static int CommandDeleteFilter(int CtrlServerSock,
+                               unsigned PID,
+                               unsigned FilterID) {
   ostringstream OS;
-  OS << "del " << FilterID;
+  OS << "del " << PID << " " << FilterID;
   return SendMessage(CtrlServerSock, OS.str().c_str());
 }
 
@@ -78,16 +82,20 @@ int loom::RunControllerClient(CtlAction ControllerAction,
   // TODO: "goto" doesn't seem a good habit.
   switch (ControllerAction) {
     case add:
-      if (Args.size() != 1)
+      if (Args.size() != 2)
         goto format_error;
-      if (CommandAddFilter(CtrlServerSock, Args[0]) == -1)
+      if (CommandAddFilter(CtrlServerSock,
+                           atoi(Args[0].c_str()),
+                           Args[1]) == -1)
         goto error;
       break;
     case del:
-      if (Args.size() != 1)
+      if (Args.size() != 2)
         goto format_error;
-      // TODO: check Args[0] is a number
-      if (CommandDeleteFilter(CtrlServerSock, atoi(Args[0].c_str())) == -1)
+      // TODO: check Args[0] and Args[1] are numbers
+      if (CommandDeleteFilter(CtrlServerSock,
+                              atoi(Args[0].c_str()),
+                              atoi(Args[1].c_str())) == -1)
         goto error;
       break;
     case ls:

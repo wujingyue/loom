@@ -22,8 +22,8 @@ static cl::opt<CtlAction> ControllerAction(
     cl::desc("Choose action:"),
     cl::values(
         clEnumVal(server, "Run the Loom controller server"),
-        clEnumVal(add, "Add an execution filter: -add <file>"),
-        clEnumVal(del, "Delete an execution filter: -del <filter ID>"),
+        clEnumVal(add, "Add an execution filter: -add <PID> <file>"),
+        clEnumVal(del, "Delete an execution filter: -del <PID> <filter ID>"),
         clEnumVal(ls, "List all filters or filters on a process: -ls [PID]"),
         clEnumVal(ps, "List all daemon processes: -ps"),
         clEnumValEnd),
@@ -34,6 +34,10 @@ int main(int argc, char *argv[]) {
   cl::ParseCommandLineOptions(argc, argv, "Loom controller");
 
   if (ControllerAction == server) {
+    if (!Args.empty()) {
+      errs() << "wrong format\n";
+      return 1;
+    }
     if (RunControllerServer() == -1)
       return 1;
    return 0;

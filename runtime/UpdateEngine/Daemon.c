@@ -362,7 +362,7 @@ static int ProcessMessage(char *Buffer, char *Response) {
     unsigned FilterIDs[MaxNumFilters];
     unsigned NumFilters = ListFilters(FilterIDs, MaxNumFilters);
     unsigned i;
-    unsigned Printed = sprintf(Response, "filters:");
+    unsigned Printed = sprintf(Response, "filter IDs:");
     for (i = 0; i < NumFilters; ++i) {
       Printed += sprintf(Response + Printed, " %u", FilterIDs[i]);
     }
