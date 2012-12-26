@@ -55,6 +55,7 @@ int HandleDaemon(int ClientSock, pid_t PID) {
   }
 
   // Remove <ClientSock> from <Daemons>.
+  errs() << "Socket " << ClientSock << " is not available any more\n";
   pthread_mutex_lock(&Mutex);
   for (map<pid_t, int>::iterator I = Daemons.begin(); I != Daemons.end(); ++I) {
     if (I->second == ClientSock) {
@@ -111,15 +112,27 @@ void HandleDeleteFilter(unsigned FilterID) {
   pthread_mutex_unlock(&Mutex);
 }
 
-void HandleListFilters() {
-  ostringstream OS;
-  OS << "ID\tfile";
-  for (size_t i = 0; i < FilterFileNames.size(); ++i) {
-    if (FilterFileNames[i] != "") {
-      OS << "\n" << i << "\t" << FilterFileNames[i];
+void HandleListFilters(pid_t PID = -1) {
+  if (PID == -1) {
+    ostringstream OS;
+    OS << "ID\tfile";
+    for (size_t i = 0; i < FilterFileNames.size(); ++i) {
+      if (FilterFileNames[i] != "") {
+        OS << "\n" << i << "\t" << FilterFileNames[i];
+      }
     }
+    SendMessage(CtrlClientSock, OS.str().c_str());
+    return;
   }
-  SendMessage(CtrlClientSock, OS.str().c_str());
+
+  pthread_mutex_lock(&Mutex);
+  if (!Daemons.count(PID)) {
+    SendMessage(CtrlClientSock, "no such process");
+    pthread_mutex_unlock(&Mutex);
+    return;
+  }
+  SendMessage(Daemons[PID], "ls");
+  pthread_mutex_unlock(&Mutex);
 }
 
 void HandleListDaemons() {
@@ -165,7 +178,11 @@ int HandleControllerClient(int ClientSock) {
       }
       HandleDeleteFilter(FilterID);
     } else if (Op == "ls") {
-      HandleListFilters();
+      unsigned PID;
+      if (!(IS >> PID))
+        HandleListFilters();
+      else
+        HandleListFilters(PID);
     } else if (Op == "ps") {
       HandleListDaemons();
     } else {
@@ -287,8 +304,12 @@ int CommandDeleteFilter(int CtrlServerSock, unsigned FilterID) {
   return SendMessage(CtrlServerSock, OS.str().c_str());
 }
 
-int CommandListFilters(int CtrlServerSock) {
-  return SendMessage(CtrlServerSock, "ls");
+int CommandListFilters(int CtrlServerSock, pid_t PID = -1) {
+  ostringstream OS;
+  OS << "ls";
+  if (PID != -1)
+    OS << " " << PID;
+  return SendMessage(CtrlServerSock, OS.str().c_str());
 }
 
 int CommandListDaemons(int CtrlServerSock) {
@@ -336,9 +357,11 @@ int RunControllerClient() {
       Ret = CommandDeleteFilter(CtrlServerSock, atoi(Args[0].c_str()));
     }
   } else if (ControllerAction == "ls") {
-    if (Args.size() != 0) {
+    if (Args.size() >= 2) {
       errs() << "wrong format\n";
       Ret = -1;
+    } else if (Args.size() == 1) {
+      Ret = CommandListFilters(CtrlServerSock, atoi(Args[0].c_str()));
     } else {
       Ret = CommandListFilters(CtrlServerSock);
     }
