@@ -1,5 +1,7 @@
 Add LoomCycleCheck to recursive function call entry
 
+Support file name + line number in the .lm files
+
 Add or delete a filter for all processes
 
 Make DEBUG_APP_CONTROLLER configurable

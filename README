@@ -29,3 +29,7 @@ Utilities
 ====================
 loom_view_proc.py lists all Loom threads, including all threads in the
 instrumented application and all Loom's daemon threads
+
+Format of Loom execution filter
+====================
+TODO
