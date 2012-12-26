@@ -1,0 +1,9 @@
+// This file describes the format of a Loom file.
+
+<filter type>
+
+<# of operations>
+<start/end> <slot ID>
+<start/end> <slot ID>
+...
+<start/end> <slot ID>
