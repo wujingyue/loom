@@ -1,0 +1,31 @@
+Building the system
+====================
+
+Need to build LLVM 3.0/3.1 and clang 3.0/3.1
+Need to build repo rcs
+
+./configure --with-rcssrc=<rcs srouce directory> --with-rcsobj=<rcs object directory> --prefix=`llvm-config --prefix`
+make
+make install
+
+Running the system
+====================
+Injects Loom's update engine into the application.
+e.g. loom_instrument.py httpd
+
+Start Loom's controller server
+loom_ctl
+
+Start the instrumented application
+e.g. ./httpd.loom
+
+After the instrumented application starts, update it with execution filters
+e.g.
+loom_ctl -add <some pid> <some filter file>
+loom_ctl -delete <some pid> <filter ID>
+loom_ctl -help to see more
+
+Utilities
+====================
+loom_view_proc.py lists all Loom threads, including all threads in the
+instrumented application and all Loom's daemon threads
