@@ -1,4 +1,8 @@
+Test cases. Seems a must for LLVM projects in the SVN repo
+
 Add LoomCycleCheck to recursive function call entry
+
+conservatively mark blocking external call
 
 Support file name + line number in the .lm files
 
@@ -14,8 +18,6 @@ Perform unlock operations before lock operations
 
 loom_view_proc.py is not able to list a Loom process whose name is longer than
 15 characters.
-
-conservatively mark blocking external call
 
 make loom_ctl reusable across multiple runs and multiple applications
 
