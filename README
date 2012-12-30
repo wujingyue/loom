@@ -30,6 +30,9 @@ Utilities
 loom_view_proc.py lists all Loom threads, including all threads in the
 instrumented application and all Loom's daemon threads
 
+loom_simple_ctl.py is a simple controller that only supports singlethreaded
+programs. See the startup message for usage.
+
 Format of Loom execution filter
 ====================
 TODO
