@@ -32,4 +32,4 @@ instrumented application and all Loom's daemon threads
 
 Format of Loom execution filter
 ====================
-TODO
+See eval/template.lm
