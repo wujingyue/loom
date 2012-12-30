@@ -22,3 +22,5 @@ loom_view_proc.py is not able to list a Loom process whose name is longer than
 make loom_ctl reusable across multiple runs and multiple applications
 
 loom_ctl ping
+
+Port to LLVM 3.2
