@@ -6,6 +6,8 @@ Build LLVM 3.0/3.1 and clang 3.0/3.1.
 Build repo rcs. Checkout `git@github.com:wujingyue/rcs.git` and follow the
 readme there.
 
+Finally, build Loom:
+
     ./configure --with-rcssrc=<rcs srouce directory> --with-rcsobj=<rcs object directory> --prefix=`llvm-config --prefix`
     make
     make install
