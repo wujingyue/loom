@@ -35,4 +35,4 @@ programs. See the startup message for usage.
 
 Format of Loom execution filter
 ====================
-TODO
+See eval/template.lm
