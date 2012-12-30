@@ -1,5 +1,5 @@
 Building Loom
-====================
+=============
 
 Build LLVM 3.0/3.1 and clang 3.0/3.1.
 
@@ -13,7 +13,7 @@ Finally, build Loom:
     make install
 
 Running Loom
-==================
+============
 
 Injects Loom's update engine into the application. For example,
 
