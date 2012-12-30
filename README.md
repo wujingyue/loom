@@ -24,6 +24,7 @@ Start Loom's controller server:
     loom_ctl
 
 Start the instrumented application. For example,
+
     ./httpd.loom
 
 After the instrumented application starts, update it with execution filters.
@@ -36,10 +37,10 @@ For example,
 Utilities
 =========
 
-loom\_view\_proc.py lists all Loom threads, including all threads in the
+`loom_view_proc.py` lists all Loom threads, including all threads in the
 instrumented application and all Loom's daemon threads.
 
-loom\_simple\_ctl.py is a simple controller that only supports singlethreaded
+`loom_simple_ctl.py` is a simple controller that only supports singlethreaded
 programs. See the startup message for usage.
 
 Format of Loom Execution Filter
