@@ -1,0 +1,18 @@
+[fancy_box]
+We are developing Loom, a live-workaround system designed to quickly and safely bypass application races at runtime. Loom provides a flexible and safe language for developers to write execution filters that explicitly synchronize code. It then uses an evacuation algorithm to safely install the filters to live applications to avoid races. It reduces its performance overhead using hybrid instrumentation that combines static and dynamic instrumentation.
+
+[toggle title="Read More..." variation=""]
+Deployed multithreaded applications contain many races because these applications are difficult to write, test, and debug. These races include data races, atomicity violations, and order violations. They can cause application crashes and data corruptions. Worse, the number of "deployed races" may drastically increase due to the rise of multicore and the immaturity of race detectors.
+
+Many previous systems can aid race detection, and diagnosing. However, they do not directly address deployed races. A conventional solution to fixing deployed race is software update, but this method requires application restarts. Live update system can avoid restarts by adapting conventional patches into hot patches and applying them to live systems, but conventional patches can introduce new errors, and creating a releasable patch can still take time.
+
+Loom is a "live-workaround" system designed to quickly protect applications against races until correct conventional patches are available and the applications can be restarted. It reflects our belief that the true power of live update is its ability to provide immediate workarounds. To use Loom, developers first compile their application with Loom. At runtime, to workaround a race, an application developer writes an execution filter that synchronizes the application source to filter out racy thread interleavings. This filter is kept separate from the source. Application users can then download the filter and, for immediate protection, install it to their application without a restart.
+
+We evaluated LOOM on nine real races from a diverse set of six applications: two server applications, MySQL and Apache; one desktop application PBZip2 (a parallel compression tool); and implementations of three scientific algorithms in SPLASH2. Our results show that Loom is effective, fast, scalable, and easy to use.
+[/toggle]
+[/fancy_box]
+
+[download_box]
+<h4>Download Loom</h4>
+We released Loom open-source at <a href="https://github.com/wujingyue/loom">GitHub</a>.
+[/download_box]
